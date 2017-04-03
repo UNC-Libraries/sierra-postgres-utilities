@@ -11,14 +11,42 @@ def get_keys(filename)
   return @secrets
 end
 
-def write_results(outfile, results)
+def make_query(query_file)
+  query = File.read(query_file)
+  puts 'running query'
+  results = run_query(query, @prod_cred)
+  return results
+end
+
+def write_results(outfile, results, headers='', csv=false)
+  puts 'writing results'
+  if csv
+    write_csv(outfile, results, headers)
+  else
+    write_tsv(outfile, results, headers)
+  end
+end
+
+def write_tsv(outfile, results, headers)
   File.open(outfile, 'w') do |file|
     results.each do |record|
-    #
-    #Lazily relying on unofficially ordered, or whatever, hash values, instead of explicit, e.g.:
-    #[record['bnum'], record['collection'], record['isbn'], record['title']]
-    # 
+      #
+      #Lazily relying on unofficially ordered, or whatever, hash values, instead of explicit, e.g.:
+      #[record['bnum'], record['collection'], record['isbn'], record['title']]
+      # 
       file << record.values().join("\t") + "\n"
+    end
+  end
+end
+
+def write_csv(outfile, results, headers)
+  require 'csv'
+  CSV.open(outfile, 'wb') do |csv|
+    if not headers.empty?
+      csv << headers
+    end
+    results.each do |record|
+      csv << record.values
     end
   end
 end
