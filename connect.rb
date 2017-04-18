@@ -2,6 +2,7 @@ require 'pg'
 
 prod_secret = File.dirname(__FILE__).to_s + '/sierra_prod.secret'
 test_secret = File.dirname(__FILE__).to_s + '/sierra_test.secret'
+@email_secret = File.dirname(__FILE__).to_s + '/email.secret'
 
 
 def get_keys(filename)
@@ -18,12 +19,15 @@ def make_query(query_file)
   return results
 end
 
-def write_results(outfile, results, headers='', csv=false)
+def write_results(outfile, results, headers='', format='tsv')
+  # needs relative path for xlsx output
   puts 'writing results'
-  if csv
-    write_csv(outfile, results, headers)
-  else
+  if format == 'tsv'
     write_tsv(outfile, results, headers)
+  elsif format == 'csv'
+    write_csv(outfile, results, headers)
+  elsif format == 'xlsx'
+    write_xlsx(outfile, results, headers)
   end
 end
 
@@ -47,6 +51,52 @@ def write_csv(outfile, results, headers)
     end
     results.each do |record|
       csv << record.values
+    end
+  end
+end
+
+def write_xlsx(outfile, results, headers)
+  require 'win32ole'
+  excel = WIN32OLE.new('Excel.Application')
+  excel.visible = false
+  workbook = excel.Workbooks.Add()
+  worksheet = workbook.Worksheets(1)
+  # find end column letter
+  end_col = ('A'..'ZZ').to_a[(headers.length-1)]
+  # write headers
+  worksheet.Range("A1:#{end_col}1").value = headers
+  # write data
+  i = 1
+  results.each do |result|
+    i += 1
+    worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
+  end
+  # save and close excel
+  outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, "\\\\")
+  if File.exist?(outfilepath)
+    File.delete(outfilepath)
+  end
+  workbook.saveas(outfilepath)
+  excel.quit()
+end
+
+
+def get_email_secret(secretfile)
+   return File.read(secretfile).rstrip
+end
+
+def mail_results(outfile, mail_details)
+  require 'mail'
+  Mail.defaults do
+    delivery_method :smtp, address: "relay.unc.edu", port: 25
+  end
+  Mail.deliver do
+    from  mail_details[:from]
+    to    mail_details[:to]
+    subject mail_details[:subject]
+    body  mail_details[:body]
+    if outfile
+      add_file  outfile
     end
   end
 end
