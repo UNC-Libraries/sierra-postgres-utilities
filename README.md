@@ -5,7 +5,10 @@ Ruby connection to iii Sierra ILS postgres database / SierraDNA, meant to simpli
 __NOTE: This is in early development and future changes may well not be backwards compatible.__
 
 ## SETUP
-Clone or download a copy.
+* Clone or download a copy.
+* gem install mail
+* gem install pg
+* supply the credentials per the below
 
 ### Production credentials
 Create <code>sierra_prod.secret</code>, a YAML file with authentication details, in the postgres_connect directory. For example:
