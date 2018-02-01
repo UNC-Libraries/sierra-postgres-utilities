@@ -10,8 +10,8 @@ class SierraBib
     @given_bnum = bnum
     @warnings = []
     if bnum =~ /^b[0-9]+[ax]?$/
-      @bnum = bnum[/^b\d+/]
-      @bnum.chop! if self.includes_check_digit?
+      @bnum = bnum.dup
+      @bnum.chop! if self.given_check_digit? || bnum[-1] == 'a'
       @bnum += 'a'
     else
       @warnings << 'Cannot retrieve Sierra bib. Bnum must start with b'
@@ -67,7 +67,6 @@ class SierraBib
   end
 
   def check_digit(recnum)
-    return nil unless recnum =~ /^[0-9]+$/
     digits = recnum.split('').reverse
     y = 2
     sum = 0
@@ -79,11 +78,12 @@ class SierraBib
     return remainder == 10 ? 'x' : remainder.to_s
   end
 
-  def includes_check_digit?
-    m = @bnum.match(/^b?([0-9]+)(.)$/)
+  def given_check_digit?
+    m = @given_bnum.match(/^b?([0-9]+)(.)$/)
     return false unless m
     recnum, final_digit = m.captures
-    return true if check_digit(recnum) == final_digit
+    return false if recnum.length < 7
+    return true if self.check_digit(recnum) == final_digit
     return false
   end
 
