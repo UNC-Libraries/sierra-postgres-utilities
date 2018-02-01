@@ -3,14 +3,16 @@ require_relative 'PostgresConnect'
 require 'marc'
 
 class SierraBib
-  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings
+  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum
 
 
   def initialize(bnum)
-    # TODO: ensure bnum has no check digit
+    @given_bnum = bnum
     @warnings = []
-    if bnum =~ /^b[0-9]+$/
-      @bnum = bnum
+    if bnum =~ /^b[0-9]+[ax]?$/
+      @bnum = bnum[/^b\d+/]
+      @bnum.chop! if self.includes_check_digit?
+      @bnum += 'a'
     else
       @warnings << 'Cannot retrieve Sierra bib. Bnum must start with b'
       return
@@ -19,8 +21,29 @@ class SierraBib
     if @record_id == nil
       @warnings << 'No record was found in Sierra for this bnum'
     end
+    @warnings << 'This Sierra bib was deleted'if @deleted
   end
 
+  # @bnum           = b1094852a
+  # bnum_trunc      = b1094852
+  def bnum_trunc
+    return nil unless @bnum
+    return @bnum[0..-2]
+  end
+
+  # @bnum           = b1094852a
+  # bnum_with_check = b10948521
+  def bnum_with_check
+    return nil unless @bnum
+    return @bnum[0..-2] + check_digit(self.recnum)
+  end
+
+  # @bnum           = b1094852a
+  # recnum          = 1094852
+  def recnum
+    return nil unless @bnum
+    return @bnum[/\d+/]
+  end
 
   def get_record_id(bnum)
     recnum = bnum[/\d+/]
@@ -29,45 +52,39 @@ class SierraBib
     #  in a way I'm missing (seems like a liability), prefer to not use
     #  that function --kms
     $c.make_query(
-      "select id 
+      "select id, deletion_date_gmt
        from sierra_view.record_metadata
        where record_type_code = 'b' 
-       and record_num = \'#{recnum}\'
-       and deletion_date_gmt is null"
+       and record_num = \'#{recnum}\'"
     )
     if $c.results.values.empty?
       return nil
     else
+      deletion_date = $c.results.values[0][1]
+      @deleted = deletion_date ? true : false
       return $c.results.values[0][0]
     end
   end
 
-  def get_trunc_bnum
-    # id2reckey calculates a record_id it doesn't find an existing record_id
-    # but we're guaranteeing a bib record
-    $c.make_query(
-      "select rec from id2reckey(\'#{@record_id}\') rec
-      inner join sierra_view.bib_record b on b.id = \'#{@record_id}\'")
-    return nil if $c.results.values.empty?
-    @trunc_bnum = $c.results.values[0][0]
+  def check_digit(recnum)
+    return nil unless recnum =~ /^[0-9]+$/
+    digits = recnum.split('').reverse
+    y = 2
+    sum = 0
+    digits.each do |digit|
+      sum += digit.to_i * y
+      y += 1
+    end
+    remainder = sum % 11
+    return remainder == 10 ? 'x' : remainder.to_s
   end
 
-  def get_bib_record_view
-    $c.make_query(
-      "select * from sierra_view.bib_record b
-      where b.id = #{@record_id}")
-    return nil if $c.results.values.empty?
-    @bib_record_view = $c.results.entries[0]
-  end
-
-  def suppressed
-    @suppressed ||= self.is_suppressed?
-  end
-
-  def is_suppressed?
-    self.get_bib_record_view unless @bib_record_view
-    return nil unless @bib_record_view
-    %w(d n c).include?(@bib_record_view)
+  def includes_check_digit?
+    m = @bnum.match(/^b?([0-9]+)(.)$/)
+    return false unless m
+    recnum, final_digit = m.captures
+    return true if check_digit(recnum) == final_digit
+    return false
   end
 
   # returns an array
@@ -112,6 +129,24 @@ class SierraBib
       end
     end
     return varfields
+  end
+
+  def get_bib_record_view
+    $c.make_query(
+      "select * from sierra_view.bib_record b
+      where b.id = #{@record_id}")
+    return nil if $c.results.values.empty?
+    @bib_record_view = $c.results.entries[0]
+  end
+
+  def suppressed
+    @suppressed ||= self.is_suppressed?
+  end
+
+  def is_suppressed?
+    self.get_bib_record_view unless @bib_record_view
+    return nil unless @bib_record_view
+    %w(d n c).include?(@bib_record_view)
   end
 
   # returns an array of the field_contents of the requested

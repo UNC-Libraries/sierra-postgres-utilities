@@ -7,8 +7,12 @@ RSpec.describe SierraBib do
 
   describe 'initialize' do
     sb1 = SierraBib.new('b1191683')
+    it 'sets given bnum' do
+      expect(sb1.given_bnum).to eq('b1191683')
+    end
+
     it 'sets bnum' do
-      expect(sb1.bnum).to eq('b1191683')
+      expect(sb1.bnum).to eq('b1191683a')
     end
 
     it 'sets bib identifier' do
@@ -42,7 +46,37 @@ If we do: SierraBib.new('b9996780003') and try to set identifier, we will get a 
   LINE 4:        and record_num = '9996780003'
 
 Shouldn't be a problem, so leaving it to fail in a nasty way for now.
-=end                                             
+=end
+
+    sb5 = SierraBib.new('b1191693x')
+    it 'sets bnum when given bnum with check digit' do
+      expect(sb5.bnum).to eq('b1191693a')
+    end
+  end
+
+  describe 'bnum_trunc' do
+    sb1 = SierraBib.new('b1191683a')
+
+    it 'yields bnum without check digit or "a"' do
+      expect(sb1.bnum_trunc).to eq('b1191683')
+    end
+    
+  end
+
+  describe 'bnum_with_check' do
+    sb1 = SierraBib.new('b1191683a')
+    
+      it 'yields bnum including actual check digit' do
+        expect(sb1.bnum_with_check).to eq('b11916837')
+      end
+  end
+
+  describe 'recnum' do
+    sb1 = SierraBib.new('b1191683a')
+    
+    it 'yields recnum' do
+      expect(sb1.recnum).to eq('1191683')
+    end
   end
 
   describe 'get_varfields' do
