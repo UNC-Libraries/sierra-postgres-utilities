@@ -44,4 +44,21 @@ If we do: SierraBib.new('b9996780003') and try to set identifier, we will get a 
 Shouldn't be a problem, so leaving it to fail in a nasty way for now.
 =end                                             
   end
+
+  describe 'get_varfields' do
+    sb5 = SierraBib.new('b3260099')
+    vf5 = sb5.get_varfields(['245b'])
+
+    it 'returns array' do
+      expect(vf5).to be_an(Array)
+    end
+
+    it 'returns array of hashed field representations' do
+      expect(vf5[0]).to be_a(Hash)
+    end
+
+    it 'adds extracted content value for each field' do
+      expect(vf5[0]['extracted_content'][0]).to eq('agriculture and education, planting the seeds of opportunity')
+    end
+  end
 end

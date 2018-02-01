@@ -43,7 +43,9 @@ class SierraBib
   end
 
 
-  # returns a hash of the query results, with an added extracted content
+  # returns an array
+  # where each element of the array
+  # is a hash of one row of the query results, with an added extracted content
   # field
   #
   # 'tags' contains marc fields and associated subfields to be retrieved
