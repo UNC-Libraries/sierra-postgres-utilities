@@ -8,9 +8,13 @@ class SierraBib
 
   def initialize(bnum)
     # TODO: ensure bnum has no check digit
-    # TODO: ensure bnum begins b
-    @bnum = bnum
     @warnings = []
+    if bnum =~ /^b[0-9]+$/
+      @bnum = bnum
+    else
+      @warnings << 'Cannot retrieve Sierra bib. Bnum must start with b'
+      return
+    end
     @record_id = get_record_id(@bnum)
     if @record_id == nil
       @warnings << 'No record was found in Sierra for this bnum'
@@ -19,10 +23,18 @@ class SierraBib
 
 
   def get_record_id(bnum)
-    # reckey2id calculates a record_id it doesn't find an existing record_id
+    recnum = bnum[/\d+/]
+    # this is a cheaper query than using the reckey2id function, I believe
+    # unless the calculation of a record_id when one isn't found is helpful
+    #  in a way I'm missing (seems like a liability), prefer to not use
+    #  that function --kms
     $c.make_query(
-      "select b.id from reckey2id(\'#{bnum}\') rec
-      inner join sierra_view.bib_record b on b.id = rec")
+      "select id 
+       from sierra_view.record_metadata
+       where record_type_code = 'b' 
+       and record_num = \'#{recnum}\'
+       and deletion_date_gmt is null"
+    )
     if $c.results.values.empty?
       return nil
     else
