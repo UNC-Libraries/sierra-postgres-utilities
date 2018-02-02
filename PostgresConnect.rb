@@ -2,7 +2,13 @@ require 'csv'
 require 'yaml'
 require 'mail'
 require 'pg'
-#require 'win32ole'
+begin
+  require 'win32ole'
+rescue LoadError
+  puts 'win32ole not found. writing output to .xlsx disabled. win32ole is
+    probably not available on linux/mac but should be part of the standard
+    library on Windows installs of Ruby'
+end
 
 class Connect < PG::Connection
   attr_reader :results
@@ -75,29 +81,32 @@ class Connect < PG::Connection
     end
   end
 
-  # def write_xlsx(outfile, results, headers)
-  #   excel = WIN32OLE.new('Excel.Application')
-  #   excel.visible = false
-  #   workbook = excel.Workbooks.Add()
-  #   worksheet = workbook.Worksheets(1)
-  #   # find end column letter
-  #   end_col = ('A'..'ZZ').to_a[(headers.length-1)]
-  #   # write headers
-  #   worksheet.Range("A1:#{end_col}1").value = headers
-  #   # write data
-  #   i = 1
-  #   results.each do |result|
-  #     i += 1
-  #     worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
-  #   end
-  #   # save and close excel
-  #   outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, "\\\\")
-  #   if File.exist?(outfilepath)
-  #     File.delete(outfilepath)
-  #   end
-  #   workbook.saveas(outfilepath)
-  #   excel.quit()
-  # end
+  def write_xlsx(outfile, results, headers)
+    unless defined?(WIN32OLE)
+      raise 'WIN32OLE not loaded; cannot write to xlsx file'
+    end
+    excel = WIN32OLE.new('Excel.Application')
+    excel.visible = false
+    workbook = excel.Workbooks.Add()
+    worksheet = workbook.Worksheets(1)
+    # find end column letter
+    end_col = ('A'..'ZZ').to_a[(headers.length-1)]
+    # write headers
+    worksheet.Range("A1:#{end_col}1").value = headers
+    # write data
+    i = 1
+    results.each do |result|
+      i += 1
+      worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
+    end
+    # save and close excel
+    outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, "\\\\")
+    if File.exist?(outfilepath)
+      File.delete(outfilepath)
+    end
+    workbook.saveas(outfilepath)
+    excel.quit()
+  end
 
   def send_mail(outfile, mail_details, remove_file: false)
     Mail.defaults do
