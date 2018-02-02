@@ -3,10 +3,19 @@ require_relative 'PostgresConnect'
 require 'marc'
 
 class SierraBib
-  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum, :deleted
+  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view
 
 
   def initialize(bnum)
+=begin
+If all goes well, creates a SierraBib object like so: 
+<SierraBib:0x0000000001fd9728
+ @bnum="b1094852a",
+ @deleted=false,
+ @given_bnum="b1094852",
+ @record_id="420907889860",
+ @warnings=[]>
+=end    
     @given_bnum = bnum
     @warnings = []
     if bnum =~ /^b[0-9]+[ax]?$/
@@ -132,6 +141,10 @@ class SierraBib
   end
 
   def get_bib_record_view
+=begin
+Adds the values from the SierraDNA bib_record_view as a has to SierraBib.bib_record_view
+
+=end
     $c.make_query(
       "select * from sierra_view.bib_record b
       where b.id = #{@record_id}")
