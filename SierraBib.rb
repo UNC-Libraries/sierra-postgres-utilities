@@ -142,8 +142,29 @@ If all goes well, creates a SierraBib object like so:
 
   def get_bib_record_view
 =begin
-Adds the values from the SierraDNA bib_record_view as a has to SierraBib.bib_record_view
-
+Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
+#<SierraBib:0x0000000002b9c9c0
+ @bib_record_view=
+  {"id"=>"420907889860",
+   "record_id"=>"420907889860",
+   "language_code"=>"eng",
+   "bcode1"=>"m",
+   "bcode2"=>"a",
+   "bcode3"=>"-",
+   "country_code"=>"enk",
+   "index_change_count"=>"11",
+   "is_on_course_reserve"=>"f",
+   "is_right_result_exact"=>"f",
+   "allocation_rule_code"=>"0",
+   "skip_num"=>"4",
+   "cataloging_date_gmt"=>"2004-10-01 00:00:00-04",
+   "marc_type_code"=>" ",
+   "is_suppressed"=>"f"},
+ @bnum="b1094852a",
+ @deleted=false,
+ @given_bnum="b1094852",
+ @record_id="420907889860",
+ @warnings=[]>
 =end
     $c.make_query(
       "select * from sierra_view.bib_record b
