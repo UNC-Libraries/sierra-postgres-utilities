@@ -7,7 +7,7 @@ begin
 rescue LoadError
   puts 'win32ole not found. writing output to .xlsx disabled. win32ole is
     probably not available on linux/mac but should be part of the standard
-    library on Windows installs'
+    library on Windows installs of Ruby'
 end
 
 class Connect < PG::Connection
