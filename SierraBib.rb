@@ -1,6 +1,7 @@
 # coding: utf-8
 require_relative 'PostgresConnect'
 require 'marc'
+require_relative 'ext/marc/record'
 
 class SierraBib
   attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view
@@ -244,6 +245,8 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
 
   def get_marc_varfields
     # get all varfields where marc tag is not null
+    # returns Array of Hashed varfield representations
+    # set @varfields_sql
     query = "select * from sierra_view.varfield where record_id = #{@record_id} and marc_tag is not null order by marc_tag, occ_num;"
     $c.make_query(query)
     @varfields_sql = $c.results.entries
@@ -487,7 +490,7 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     oclc035s.flatten!
     @oclcnum035s = oclc035s.map { |sf| sf.value.gsub(/\(OCoLC\)0*/,'') }
 
-    oclcnum = @oclcnum035s[0] if oclcnum == '' && @oclcnum035s
+    oclcnum = @oclcnum035s[0] if oclcnum == nil && @oclcnum035s
     @oclcnum = oclcnum
   end
 

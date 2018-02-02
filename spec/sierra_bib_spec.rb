@@ -148,4 +148,10 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
       expect(vf5[0]['extracted_content'][0]).to eq('agriculture and education, planting the seeds of opportunity')
     end
   end
+
+  describe 'find_oclcnum' do
+    
+    
+   end
+  
 end
