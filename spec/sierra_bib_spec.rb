@@ -150,8 +150,10 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
   end
 
   describe 'find_oclcnum' do
-    
-    
-   end
-  
+    it 'gets oclcnum from MARC::Record' do
+      b = SierraBib.new('b52446219')
+      expect(b.oclcnum).to eq(b.marc.oclcnum)
+    end
+  end
+
 end

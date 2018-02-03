@@ -464,34 +464,10 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     return [code, language]
   end
 
-
-  def oclcnum
-    @oclcnum ||= self.find_oclcnum
-  end
-
   def find_oclcnum
-    self.marc
-    oclcnum_003s = ['', 'OCoLC', 'NhCcYBP']
-    my001 = @marc['001'] ? @marc['001'].value : ''
-    my003 = @marc['003'] ? @marc['003'].value : ''
-    if my001 =~ /^\d+$/ && oclcnum_003s.include?(my003)
-      oclcnum = my001
-    elsif my001 =~ /^(hsl|tmp)\d+$/ && oclcnum_003s.include?(my003)
-      oclcnum = my001.gsub('tmp', '').gsub('hsl', '')
-    elsif my001 =~ /^\d+\D\w+$/i
-      oclcnum = my001.gsub(/^(\d+)\D\w+$/, '\1')
-    end
-
-    my035s = marc.find_all { |f| f.tag == '035'}
-    oclc035s = []
-    my035s.each do |m035|
-      oclc035s << m035.subfields.select { |sf| sf.code == 'a' and sf.value.match(/^\(OCoLC\)/) }
-    end
-    oclc035s.flatten!
-    @oclcnum035s = oclc035s.map { |sf| sf.value.gsub(/\(OCoLC\)0*/,'') }
-
-    oclcnum = @oclcnum035s[0] if oclcnum == nil && @oclcnum035s
-    @oclcnum = oclcnum
+    mrec = self.marc
+    mrec.get_oclcnum
+    @oclnum = mrec.oclcnum
   end
 
   def fake_leader
