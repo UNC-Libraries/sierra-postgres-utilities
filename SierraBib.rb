@@ -464,11 +464,13 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     return [code, language]
   end
 
-  def find_oclcnum
-    mrec = self.marc
-    mrec.get_oclcnum
-    @oclnum = mrec.oclcnum
-  end
+  def oclcnum
+    # This method allows us to get sb2.oclcnum without doing
+    #   any kind of explicit find_oclcnum first
+    # We could also set the oclcnum manually and have that
+    #   given value returned
+    @oclcnum ||= self.marc.oclcnum
+  end  
 
   def fake_leader
     return '=LDR  00378nam  2200061   45e0'

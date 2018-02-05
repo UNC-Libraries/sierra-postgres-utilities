@@ -80,16 +80,16 @@ RSpec.describe MARC::Record do
       r = stub_builder('WHO123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq(nil)
     end
-
+  end
+  
+describe 'oclcnum' do
     it 'sets MARC::Record oclcnum instance attribute when OCLC Number present' do
       r = stub_builder('123', '', [])
-      r.get_oclcnum
       expect(r.oclcnum).to eq('123')
     end
 
     it 'sets MARC::Record oclcnum instance attribute to nil if there is no OCLC number' do
       r = stub_builder('WHO123', 'OCoLC', [])
-      r.get_oclcnum
       expect(r.oclcnum).to eq(nil)
     end
   end

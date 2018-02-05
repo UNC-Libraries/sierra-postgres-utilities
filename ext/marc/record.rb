@@ -1,7 +1,11 @@
 module MARC
   #Extend the MARC::Record class with some UNC-specific helpers
   class Record
-    attr_accessor :oclcnum
+    attr_reader :oclcnum
+
+    def oclcnum
+      @oclcnum ||= self.get_oclcnum
+    end
     
     def get_oclcnum
     oclcnum_003s = ['', 'OCoLC', 'NhCcYBP']
