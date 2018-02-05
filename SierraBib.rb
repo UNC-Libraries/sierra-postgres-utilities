@@ -358,6 +358,9 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def bcode1_blvl
+    # this usually, but not always, is the same as LDR/07(set as @blvl)
+    # and in cases where they do not agree, it has seemed that
+    # MAYBE bcode1 is more accurate and iii failed to update the LDR/07
     self.get_bib_record_view if !@bib_record_view
     return nil unless @bib_record_view
     @bib_record_view['bcode1']
