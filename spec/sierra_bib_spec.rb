@@ -148,4 +148,12 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
       expect(vf5[0]['extracted_content'][0]).to eq('agriculture and education, planting the seeds of opportunity')
     end
   end
+
+  describe 'oclcnum' do
+    it 'gets oclcnum from MARC::Record' do
+      b = SierraBib.new('b52446219')
+      expect(b.oclcnum).to eq(b.marc.oclcnum)
+    end
+  end
+
 end

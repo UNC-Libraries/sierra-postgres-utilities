@@ -1,12 +1,22 @@
 # coding: utf-8
 require_relative 'PostgresConnect'
 require 'marc'
+require_relative 'ext/marc/record'
 
 class SierraBib
-  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum
+  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view
 
 
   def initialize(bnum)
+=begin
+If all goes well, creates a SierraBib object like so: 
+<SierraBib:0x0000000001fd9728
+ @bnum="b1094852a",
+ @deleted=false,
+ @given_bnum="b1094852",
+ @record_id="420907889860",
+ @warnings=[]>
+=end    
     @given_bnum = bnum
     @warnings = []
     if bnum =~ /^b[0-9]+[ax]?$/
@@ -132,6 +142,31 @@ class SierraBib
   end
 
   def get_bib_record_view
+=begin
+Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
+#<SierraBib:0x0000000002b9c9c0
+ @bib_record_view=
+  {"id"=>"420907889860",
+   "record_id"=>"420907889860",
+   "language_code"=>"eng",
+   "bcode1"=>"m",
+   "bcode2"=>"a",
+   "bcode3"=>"-",
+   "country_code"=>"enk",
+   "index_change_count"=>"11",
+   "is_on_course_reserve"=>"f",
+   "is_right_result_exact"=>"f",
+   "allocation_rule_code"=>"0",
+   "skip_num"=>"4",
+   "cataloging_date_gmt"=>"2004-10-01 00:00:00-04",
+   "marc_type_code"=>" ",
+   "is_suppressed"=>"f"},
+ @bnum="b1094852a",
+ @deleted=false,
+ @given_bnum="b1094852",
+ @record_id="420907889860",
+ @warnings=[]>
+=end
     $c.make_query(
       "select * from sierra_view.bib_record b
       where b.id = #{@record_id}")
@@ -210,6 +245,8 @@ class SierraBib
 
   def get_marc_varfields
     # get all varfields where marc tag is not null
+    # returns Array of Hashed varfield representations
+    # set @varfields_sql
     query = "select * from sierra_view.varfield where record_id = #{@record_id} and marc_tag is not null order by marc_tag, occ_num;"
     $c.make_query(query)
     @varfields_sql = $c.results.entries
@@ -427,35 +464,13 @@ class SierraBib
     return [code, language]
   end
 
-
   def oclcnum
-    @oclcnum ||= self.find_oclcnum
-  end
-
-  def find_oclcnum
-    self.marc
-    oclcnum_003s = ['', 'OCoLC', 'NhCcYBP']
-    my001 = @marc['001'] ? @marc['001'].value : ''
-    my003 = @marc['003'] ? @marc['003'].value : ''
-    if my001 =~ /^\d+$/ && oclcnum_003s.include?(my003)
-      oclcnum = my001
-    elsif my001 =~ /^(hsl|tmp)\d+$/ && oclcnum_003s.include?(my003)
-      oclcnum = my001.gsub('tmp', '').gsub('hsl', '')
-    elsif my001 =~ /^\d+\D\w+$/i
-      oclcnum = my001.gsub(/^(\d+)\D\w+$/, '\1')
-    end
-
-    my035s = marc.find_all { |f| f.tag == '035'}
-    oclc035s = []
-    my035s.each do |m035|
-      oclc035s << m035.subfields.select { |sf| sf.code == 'a' and sf.value.match(/^\(OCoLC\)/) }
-    end
-    oclc035s.flatten!
-    @oclcnum035s = oclc035s.map { |sf| sf.value.gsub(/\(OCoLC\)0*/,'') }
-
-    oclcnum = @oclcnum035s[0] if oclcnum == '' && @oclcnum035s
-    @oclcnum = oclcnum
-  end
+    # This method allows us to get sb2.oclcnum without doing
+    #   any kind of explicit find_oclcnum first
+    # We could also set the oclcnum manually and have that
+    #   given value returned
+    @oclcnum ||= self.marc.oclcnum
+  end  
 
   def fake_leader
     return '=LDR  00378nam  2200061   45e0'
