@@ -58,12 +58,6 @@ If we do: SierraBib.new('b9996780003') and try to set identifier, we will get a 
 
 Shouldn't be a problem, so leaving it to fail in a nasty way for now.
 =end
-
-    # TODO: j: how is object numbering supposed to happen? find out, clean up numbers.
-    sb05 = SierraBib.new('b1191693x')
-    it 'sets bnum when given bnum with check digit' do
-      expect(sb05.bnum).to eq('b1191693a')
-    end
   end
 
   describe 'bnum_trunc' do
@@ -110,26 +104,6 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     it 'correctly calculates a check digit of "x"' do
       expect(sb010.check_digit('1191693')).to eq('x')
     end
-  end
-
-  describe 'given_check_digit?' do
-
-    sb011 = SierraBib.new('b1191693x')
-    it 'returns true when given_bnum includes check digit' do
-      expect(sb011.given_check_digit?).to eq(true)
-    end
-
-    sb012 = SierraBib.new('b1191693')
-    it 'returns false when given_bnum does not include check digit' do
-      expect(sb012.given_check_digit?).to eq(false)
-    end
-
-    sb013 = SierraBib.new('b6780003')
-    # check digit for '678000' would be 3, but 3 is not a check digit here
-    it 'returns false if recnum would be 7 or fewer digits' do
-      expect(sb013.given_check_digit?).to eq(false)
-    end
-
   end
 
   describe 'get_varfields' do
