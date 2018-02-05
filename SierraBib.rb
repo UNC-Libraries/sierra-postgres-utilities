@@ -19,10 +19,9 @@ If all goes well, creates a SierraBib object like so:
 =end    
     @given_bnum = bnum
     @warnings = []
-    if bnum =~ /^b[0-9]+[ax]?$/
+    if bnum =~ /^b[0-9]+a?$/
       @bnum = bnum.dup
-      @bnum.chop! if self.given_check_digit? || bnum[-1] == 'a'
-      @bnum += 'a'
+      @bnum += 'a' unless bnum[-1] == 'a'
     else
       @warnings << 'Cannot retrieve Sierra bib. Bnum must start with b'
       return
@@ -38,14 +37,14 @@ If all goes well, creates a SierraBib object like so:
   # bnum_trunc      = b1094852
   def bnum_trunc
     return nil unless @bnum
-    return @bnum[0..-2]
+    return @bnum.chop
   end
 
   # @bnum           = b1094852a
   # bnum_with_check = b10948521
   def bnum_with_check
     return nil unless @bnum
-    return @bnum[0..-2] + check_digit(self.recnum)
+    return @bnum.chop + check_digit(self.recnum)
   end
 
   # @bnum           = b1094852a
@@ -86,15 +85,6 @@ If all goes well, creates a SierraBib object like so:
     end
     remainder = sum % 11
     return remainder == 10 ? 'x' : remainder.to_s
-  end
-
-  def given_check_digit?
-    m = @given_bnum.match(/^b?([0-9]+)(.)$/)
-    return false unless m
-    recnum, final_digit = m.captures
-    return false if recnum.length < 7
-    return true if self.check_digit(recnum) == final_digit
-    return false
   end
 
   # returns an array
