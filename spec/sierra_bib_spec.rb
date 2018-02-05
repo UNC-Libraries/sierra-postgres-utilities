@@ -149,9 +149,31 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     end
   end
 
+  describe 'is_suppressed' do
+
+    sb_1 = SierraBib.new('b5877843')
+    it 'returns true if bib is suppressed' do
+      expect(sb_1.is_suppressed?).to eq(true)
+    end
+
+    sb_2 = SierraBib.new('b3260099')
+    it 'returns false if bib is unsuppressed' do
+      expect(sb_2.is_suppressed?).to eq(false)
+    end
+
+    it 'sets suppressed boolean when bib exists' do
+      expect(sb_2.suppressed).to eq(false)
+    end
+
+    sb_3 = SierraBib.new('b4576646')
+    it 'counts bcode3 == "c" as suppressed' do
+      expect(sb_3.is_suppressed?).to eq(true)
+    end
+  end
+
   describe 'oclcnum' do
     it 'gets oclcnum from MARC::Record' do
-      b = SierraBib.new('b52446219')
+      b = SierraBib.new('b5244621')
       expect(b.oclcnum).to eq(b.marc.oclcnum)
     end
   end

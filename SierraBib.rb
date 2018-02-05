@@ -9,6 +9,9 @@ class SierraBib
 
   def initialize(bnum)
 =begin
+Must be given a bnum that does not include an actual check digit.
+  Good: 'b1094852a', 'b1094852'
+  Bad:  'b10948521'
 If all goes well, creates a SierraBib object like so: 
 <SierraBib:0x0000000001fd9728
  @bnum="b1094852a",
@@ -169,9 +172,11 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def is_suppressed?
+    # not the same value as iii's is_suppressed SQL field which
+    # does not consider 'c' a suppression bcode3
     self.get_bib_record_view unless @bib_record_view
     return nil unless @bib_record_view
-    %w(d n c).include?(@bib_record_view)
+    @suppressed = %w(d n c).include?(@bib_record_view['bcode3'])
   end
 
   # returns an array of the field_contents of the requested
