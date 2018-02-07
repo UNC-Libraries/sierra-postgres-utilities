@@ -58,12 +58,6 @@ If we do: SierraBib.new('b9996780003') and try to set identifier, we will get a 
 
 Shouldn't be a problem, so leaving it to fail in a nasty way for now.
 =end
-
-    # TODO: j: how is object numbering supposed to happen? find out, clean up numbers.
-    sb05 = SierraBib.new('b1191693x')
-    it 'sets bnum when given bnum with check digit' do
-      expect(sb05.bnum).to eq('b1191693a')
-    end
   end
 
   describe 'bnum_trunc' do
@@ -112,26 +106,6 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     end
   end
 
-  describe 'given_check_digit?' do
-
-    sb011 = SierraBib.new('b1191693x')
-    it 'returns true when given_bnum includes check digit' do
-      expect(sb011.given_check_digit?).to eq(true)
-    end
-
-    sb012 = SierraBib.new('b1191693')
-    it 'returns false when given_bnum does not include check digit' do
-      expect(sb012.given_check_digit?).to eq(false)
-    end
-
-    sb013 = SierraBib.new('b6780003')
-    # check digit for '678000' would be 3, but 3 is not a check digit here
-    it 'returns false if recnum would be 7 or fewer digits' do
-      expect(sb013.given_check_digit?).to eq(false)
-    end
-
-  end
-
   describe 'get_varfields' do
     sb5 = SierraBib.new('b3260099')
     vf5 = sb5.get_varfields(['245b'])
@@ -149,9 +123,31 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     end
   end
 
+  describe 'is_suppressed' do
+
+    sb_1 = SierraBib.new('b5877843')
+    it 'returns true if bib is suppressed' do
+      expect(sb_1.is_suppressed?).to eq(true)
+    end
+
+    sb_2 = SierraBib.new('b3260099')
+    it 'returns false if bib is unsuppressed' do
+      expect(sb_2.is_suppressed?).to eq(false)
+    end
+
+    it 'sets suppressed boolean when bib exists' do
+      expect(sb_2.suppressed).to eq(false)
+    end
+
+    sb_3 = SierraBib.new('b4576646')
+    it 'counts bcode3 == "c" as suppressed' do
+      expect(sb_3.is_suppressed?).to eq(true)
+    end
+  end
+
   describe 'oclcnum' do
     it 'gets oclcnum from MARC::Record' do
-      b = SierraBib.new('b52446219')
+      b = SierraBib.new('b5244621')
       expect(b.oclcnum).to eq(b.marc.oclcnum)
     end
   end

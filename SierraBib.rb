@@ -9,6 +9,9 @@ class SierraBib
 
   def initialize(bnum)
 =begin
+Must be given a bnum that does not include an actual check digit.
+  Good: 'b1094852a', 'b1094852'
+  Bad:  'b10948521'
 If all goes well, creates a SierraBib object like so: 
 <SierraBib:0x0000000001fd9728
  @bnum="b1094852a",
@@ -19,10 +22,9 @@ If all goes well, creates a SierraBib object like so:
 =end    
     @given_bnum = bnum
     @warnings = []
-    if bnum =~ /^b[0-9]+[ax]?$/
+    if bnum =~ /^b[0-9]+a?$/
       @bnum = bnum.dup
-      @bnum.chop! if self.given_check_digit? || bnum[-1] == 'a'
-      @bnum += 'a'
+      @bnum += 'a' unless bnum[-1] == 'a'
     else
       @warnings << 'Cannot retrieve Sierra bib. Bnum must start with b'
       return
@@ -38,14 +40,14 @@ If all goes well, creates a SierraBib object like so:
   # bnum_trunc      = b1094852
   def bnum_trunc
     return nil unless @bnum
-    return @bnum[0..-2]
+    return @bnum.chop
   end
 
   # @bnum           = b1094852a
   # bnum_with_check = b10948521
   def bnum_with_check
     return nil unless @bnum
-    return @bnum[0..-2] + check_digit(self.recnum)
+    return @bnum.chop + check_digit(self.recnum)
   end
 
   # @bnum           = b1094852a
@@ -86,15 +88,6 @@ If all goes well, creates a SierraBib object like so:
     end
     remainder = sum % 11
     return remainder == 10 ? 'x' : remainder.to_s
-  end
-
-  def given_check_digit?
-    m = @given_bnum.match(/^b?([0-9]+)(.)$/)
-    return false unless m
-    recnum, final_digit = m.captures
-    return false if recnum.length < 7
-    return true if self.check_digit(recnum) == final_digit
-    return false
   end
 
   # returns an array
@@ -179,9 +172,11 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def is_suppressed?
+    # not the same value as iii's is_suppressed SQL field which
+    # does not consider 'c' a suppression bcode3
     self.get_bib_record_view unless @bib_record_view
     return nil unless @bib_record_view
-    %w(d n c).include?(@bib_record_view)
+    @suppressed = %w(d n c).include?(@bib_record_view['bcode3'])
   end
 
   # returns an array of the field_contents of the requested
@@ -363,6 +358,9 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def bcode1_blvl
+    # this usually, but not always, is the same as LDR/07(set as @blvl)
+    # and in cases where they do not agree, it has seemed that
+    # MAYBE bcode1 is more accurate and iii failed to update the LDR/07
     self.get_bib_record_view if !@bib_record_view
     return nil unless @bib_record_view
     @bib_record_view['bcode1']
