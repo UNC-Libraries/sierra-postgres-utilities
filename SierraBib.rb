@@ -481,7 +481,7 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def stub_load_note
-    return "=944  \\$aBatch load history: 999 Something records to fix URLs loaded 20180000, xxx."
+    return "=944  \\\\$aBatch load history: 999 Something records to fix URLs loaded 20180000, xxx."
   end
 
 end
