@@ -36,10 +36,10 @@ RSpec.describe MARC::Record do
       expect(r.get_oclcnum).to eq(nil)
     end
 
-    it 'strips leading zero(s) from oclc_number set from 035' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
-      expect(r.get_oclcnum).to eq('567')
-    end
+#    it 'strips leading zero(s) from oclc_number set from 035' do
+#      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+#      expect(r.get_oclcnum).to eq('567')
+#    end
 
     it 'sets oclc_number when 001 is digits only and 003 = NhCcYBP' do
       r = stub_builder('123', 'NhCcYBP', [])
@@ -61,10 +61,10 @@ RSpec.describe MARC::Record do
       expect(r.get_oclcnum).to eq(nil)
     end
 
-    it 'sets oclc_number from 035 when it starts with ocm' do
-      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
-      expect(r.get_oclcnum).to eq('444')
-    end
+#    it 'sets oclc_number from 035 when it starts with ocm' do
+#      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
+#      expect(r.get_oclcnum).to eq('444')
+#    end
 
     it 'does NOT set oclc_number when 001 has prefix moml and 003 = OCoLC' do
       r = stub_builder('moml123', 'OCoLC', [])
@@ -82,7 +82,36 @@ RSpec.describe MARC::Record do
     end
   end
   
-describe 'oclcnum' do
+  describe 'get_035oclcnums' do
+
+    it 'returns oclc_number even when 001 is digits only and 003 = OCoLC' do
+      r = stub_builder('123', 'OCoLC', ['(OCoLC)000000567'])
+      expect(r.get_035oclcnums).to eq(['567'])
+    end
+
+    it 'strips leading zero(s) from oclc_numbers' do
+      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+      expect(r.get_035oclcnums).to eq(['567'])
+    end
+
+    it 'includes oclc_number from 035 when it starts with ocm' do
+      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
+      expect(r.get_035oclcnums).to eq(['444'])
+    end
+
+    it 'does not include oclc_number when 035 has prefix M-ESTCN' do
+      r = stub_builder('', '', ['(OCoLC)M-ESTCN987'])
+      expect(r.get_035oclcnums).to be_nil
+    end
+
+    it 'is nil if no OCLC 035s' do
+      r = stub_builder('', '', [])
+      expect(r.get_035oclcnums).to be_nil
+    end
+  
+  end
+  
+  describe 'oclcnum' do
     it 'sets MARC::Record oclcnum instance attribute when OCLC Number present' do
       r = stub_builder('123', '', [])
       expect(r.oclcnum).to eq('123')
@@ -91,6 +120,96 @@ describe 'oclcnum' do
     it 'sets MARC::Record oclcnum instance attribute to nil if there is no OCLC number' do
       r = stub_builder('WHO123', 'OCoLC', [])
       expect(r.oclcnum).to eq(nil)
+    end
+  end
+
+  describe 'no_245_has_ak' do
+
+    rec1 = MARC::Record.new
+    rec1 << MARC::DataField.new('245', ' ', ' ', ['b', 'title'])
+    rec1 << MARC::DataField.new('245', ' ', ' ', ['a', 'title'])
+    it 'is nil if any 245 has 245$a' do
+      expect(rec1.no_245_has_ak?).to be_nil
+    end
+
+    rec2 = MARC::Record.new
+    rec2 << MARC::DataField.new('245', ' ', ' ', ['b', 'title'], ['k', 'title'])
+    it 'is nil if any 245 has 245$k' do
+      expect(rec2.no_245_has_ak?).to be_nil
+    end
+
+    rec3 = MARC::Record.new
+    rec3 << MARC::DataField.new('245', ' ', ' ', ['b', 'title'])
+    it 'is true if no 245 has 245$k' do
+      expect(rec3.no_245_has_ak?).to be true
+    end
+
+    rec4 = MARC::Record.new
+    it 'is nil if no 245s exist' do
+      expect(rec4.no_245_has_ak?).to be_nil
+    end
+  end
+
+
+  describe 'm300_without_a' do
+    
+        rec1 = MARC::Record.new
+        rec1 << MARC::DataField.new('300', ' ', ' ', ['a', ''])
+        rec1 << MARC::DataField.new('300', ' ', ' ', ['b', ''])
+        it 'is true if any 300 lacks 300$a' do
+          expect(rec1.m300_without_a?).to be true
+        end
+    
+        rec2 = MARC::Record.new
+        rec2 << MARC::DataField.new('300', ' ', ' ', ['a', ''], ['b', ''])
+        rec2 << MARC::DataField.new('300', ' ', ' ', ['z', ''], ['a', ''])
+        it 'is nil if all 300s have 300$a' do
+          expect(rec2.m300_without_a?).to be_nil
+        end
+
+        rec4 = MARC::Record.new
+        it 'is nil if no 300s exist' do
+          expect(rec4.m300_without_a?).to be_nil
+        end
+    
+      end
+
+
+  describe 'no_oclc_035' do
+
+    it 'is true if 035(s) are non-OCLC' do
+      r = stub_builder('123', 'ItFiC', ['(Nonsense)567'])
+      expect(r.no_oclc_035?).to be true
+    end
+
+    it 'is true if no 035s exist' do
+      r = stub_builder('123', 'ItFiC', [])
+      expect(r.no_oclc_035?).to be true
+    end
+
+    it 'is false if OCLC 035 exists' do
+      r = stub_builder('123', 'ItFiC', ['(OCoLC)567'])
+      expect(r.no_oclc_035?).to be false
+    end
+
+  end
+
+  describe 'multiple_oclc_035' do
+
+    it 'is true if multple oclcnums in 035s' do
+      r = stub_builder('123', 'ItFiC', ['(OCoLC)123'])
+      r << MARC::DataField.new('035', ' ', ' ', ['a', '(OCoLC)456'])
+      expect(r.multiple_oclc_035?).to be true
+    end
+
+    it 'is nil if one oclcnum in 035s' do
+      r = stub_builder('123', 'ItFiC', ['(OCoLC)567'])
+      expect(r.multiple_oclc_035?).to be_nil
+    end
+    
+    it 'is nil if no oclcnums in 035s' do
+      r = stub_builder('123', 'ItFiC', [])
+      expect(r.multiple_oclc_035?).to be_nil
     end
   end
 end

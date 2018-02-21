@@ -4,7 +4,7 @@ require 'marc'
 require_relative 'ext/marc/record'
 
 class SierraBib
-  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :oclcnum035s, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view
+  attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view, :multiple_LDRs_flag
 
 
   def initialize(bnum)
