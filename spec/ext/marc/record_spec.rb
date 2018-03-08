@@ -108,6 +108,12 @@ RSpec.describe MARC::Record do
       r = stub_builder('', '', [])
       expect(r.get_035oclcnums).to be_nil
     end
+
+    it 'happily returns multiple 035s' do
+      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+      r << MARC::DataField.new('035', ' ', ' ', ['a', '(OCoLC)000000123'])
+      expect(r.get_035oclcnums).to eq(['567', '123'])
+    end
   
   end
   
@@ -153,63 +159,43 @@ RSpec.describe MARC::Record do
 
   describe 'm300_without_a' do
     
-        rec1 = MARC::Record.new
-        rec1 << MARC::DataField.new('300', ' ', ' ', ['a', ''])
-        rec1 << MARC::DataField.new('300', ' ', ' ', ['b', ''])
-        it 'is true if any 300 lacks 300$a' do
-          expect(rec1.m300_without_a?).to be true
-        end
+    rec1 = MARC::Record.new
+    rec1 << MARC::DataField.new('300', ' ', ' ', ['a', ''])
+    rec1 << MARC::DataField.new('300', ' ', ' ', ['b', ''])
+    it 'is true if any 300 lacks 300$a' do
+      expect(rec1.m300_without_a?).to be true
+    end
+
+    rec2 = MARC::Record.new
+    rec2 << MARC::DataField.new('300', ' ', ' ', ['a', ''], ['b', ''])
+    rec2 << MARC::DataField.new('300', ' ', ' ', ['z', ''], ['a', ''])
+    it 'is nil if all 300s have 300$a' do
+      expect(rec2.m300_without_a?).to be_nil
+    end
+
+    rec4 = MARC::Record.new
+    it 'is nil if no 300s exist' do
+      expect(rec4.m300_without_a?).to be_nil
+    end
     
-        rec2 = MARC::Record.new
-        rec2 << MARC::DataField.new('300', ' ', ' ', ['a', ''], ['b', ''])
-        rec2 << MARC::DataField.new('300', ' ', ' ', ['z', ''], ['a', ''])
-        it 'is nil if all 300s have 300$a' do
-          expect(rec2.m300_without_a?).to be_nil
-        end
-
-        rec4 = MARC::Record.new
-        it 'is nil if no 300s exist' do
-          expect(rec4.m300_without_a?).to be_nil
-        end
-    
-      end
-
-
-  describe 'no_oclc_035' do
-
-    it 'is true if 035(s) are non-OCLC' do
-      r = stub_builder('123', 'ItFiC', ['(Nonsense)567'])
-      expect(r.no_oclc_035?).to be true
-    end
-
-    it 'is true if no 035s exist' do
-      r = stub_builder('123', 'ItFiC', [])
-      expect(r.no_oclc_035?).to be true
-    end
-
-    it 'is false if OCLC 035 exists' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)567'])
-      expect(r.no_oclc_035?).to be false
-    end
-
   end
 
-  describe 'multiple_oclc_035' do
+  describe 'count' do
+    rec1 = MARC::Record.new
+    rec1 << MARC::ControlField.new('001', 'value')
+    rec1 << MARC::DataField.new('300', ' ', ' ', ['a', ''])
+    rec1 << MARC::DataField.new('300', ' ', ' ', ['b', ''])
 
-    it 'is true if multple oclcnums in 035s' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)123'])
-      r << MARC::DataField.new('035', ' ', ' ', ['a', '(OCoLC)456'])
-      expect(r.multiple_oclc_035?).to be true
+    it 'returns number of fields with given tag' do
+      expect(rec1.count('300')).to eq(2)
     end
 
-    it 'is nil if one oclcnum in 035s' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)567'])
-      expect(r.multiple_oclc_035?).to be_nil
+    it 'can also count control fields' do
+      expect(rec1.count('001')).to eq(1)
     end
-    
-    it 'is nil if no oclcnums in 035s' do
-      r = stub_builder('123', 'ItFiC', [])
-      expect(r.multiple_oclc_035?).to be_nil
+
+    it 'returns 0 if no fields' do
+      expect(rec1.count('999')).to eq(0)
     end
   end
 end
