@@ -5,7 +5,7 @@ require_relative 'ext/marc/record'
 
 class SierraBib
   attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view, :multiple_LDRs_flag
-
+  attr_accessor :stub
 
   def initialize(bnum)
 =begin
@@ -463,7 +463,7 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def oclcnum
-    # This method allows us to get sb2.oclcnum without doing
+    # This method allows us to get oclcnum without doing
     #   any kind of explicit find_oclcnum first
     # We could also set the oclcnum manually and have that
     #   given value returned
@@ -481,9 +481,34 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
   end
 
   def stub_load_note
-    return "=944  \\\\$aBatch load history: 999 Something records to fix URLs loaded 20180000, xxx."
+    return "=944  \\\\$aBatch load history: 999 Something records loaded 20180000, xxx."
   end
 
+  def stub
+    return @stub if @stub
+    @stub = MARC::Record.new
+    @stub << MARC::DataField.new('907', ' ', ' ', ['a', ".#{@bnum}"])
+    load_note = 'Batch load history: 999 Something records loaded 20180000, xxx.'
+    @stub << MARC::DataField.new('944', ' ', ' ', ['a', "#{load_note}"])
+    return @stub
+  end
+
+  def get_varfields_as_marc(tags)
+    # returns array of MARC DataField objects
+    # Any fields < '010' Sierra has in sierra_view.varfield
+    #  get returned as a MARC ControlField object
+    varfields = self.get_varfields(tags)
+    varfields.map! do |v|
+      if v['marc_tag'] =~ /00[0-9]/
+        f = MARC::ControlField.new(v['marc_tag'], v['field_content'])
+      else
+        subfields = self.subfield_arry(v['field_content'])        
+        f = MARC::DataField.new(v['marc_tag'], v['marc_ind1'], v['marc_ind2'])
+        subfields.each { |code, value| f.append(MARC::Subfield.new(code, value)) }
+        f
+      end
+    end
+  end
 end
 
 
