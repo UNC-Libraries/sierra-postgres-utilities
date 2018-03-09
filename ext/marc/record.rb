@@ -62,26 +62,6 @@ module MARC
       return true if self.leader[7] !~ /[a-d]|i|m|s/
     end
 
-    def no_001?
-      return true if self.find_all { |f| f.tag == '001' }.length == 0
-    end
-
-    def multiple_001?
-      return true if self.find_all { |f| f.tag == '001' }.length >= 2
-    end
-
-    def multiple_003?
-      return true if self.find_all { |f| f.tag == '003' }.length >= 2
-    end
-
-    def no_008?
-      return true if self.find_all { |f| f.tag == '008' }.length == 0
-    end
-
-    def multiple_008?
-      return true if self.find_all { |f| f.tag == '008' }.length >= 2
-    end
-
     def bad_008_length?
       # true if any 008 length != 40
       # This check to make sure the 008 is 40 chars long. Afaik Sierra postgres
@@ -94,10 +74,6 @@ module MARC
       return nil unless my008s
       my008s.reject! { |f| f.value.length == 40 }
       return true unless my008s.empty?
-    end
-
-    def no_245?
-      return true if self.find_all { |f| f.tag == '245' }.length == 0
     end
 
     def no_245_has_ak?
@@ -113,34 +89,29 @@ module MARC
       return true
     end
 
-    def multiple_245?
-      return true if self.find_all { |f| f.tag == '245' }.length >= 2
-    end
-
-    def no_300?
-      return true if self.find_all { |f| f.tag == '300' }.length == 0
+    def count(tag)
+      # counts number of fields for given marc tag
+      fields = self.find_all { |f| f.tag == tag }
+      return nil unless fields
+      fields.length
     end
 
     def m300_without_a?
-      return nil if self.no_300?
+      my300s = self.find_all { |f| f.tag == '300' }
+      return nil if my300s.empty?
       # create array containing, for each 300 field, an array of its subfield codes
       # e.g. [ ['a', 'c'], ['a', 'b', 'c'], ['d'] ]
-      sf_codes = self.find_all { |f| f.tag == '300' }.map { |f| f.subfields.map{ |s| s.code } }
+      sf_codes = my300s.map { |f| f.subfields.map{ |s| s.code } }
       sf_codes.each do |arry|
         return true unless arry.include?('a')
       end
       return nil
     end
 
-    def no_oclc_035?
-      return true if self.get_035oclcnums == nil
-      return false
-    end
-
-    def multiple_oclc_035?
+    def oclc_035_count
       m035oclcnums = self.get_035oclcnums
-      return nil unless m035oclcnums
-      return true if m035oclcnums.length >= 2
+      return 0 unless m035oclcnums
+      m035oclcnums.length
     end
 
   end #class Record
