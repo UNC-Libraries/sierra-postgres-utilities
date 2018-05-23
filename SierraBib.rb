@@ -1,11 +1,14 @@
 # coding: utf-8
+require_relative 'SierraItem'
 require_relative 'PostgresConnect'
 require 'marc'
 require_relative 'ext/marc/record'
+require_relative 'ext/marc/datafield'
+
 
 class SierraBib
   attr_reader :record_id, :bnum, :varfields, :varfields_sql, :varfields_str, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :warnings, :given_bnum, :deleted, :bib_record_view, :multiple_LDRs_flag
-  attr_accessor :stub
+  attr_accessor :stub, :items
 
   def initialize(bnum)
 =begin
@@ -238,6 +241,11 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     return arry[1..-1].map { |x| [x[0], x[1..-1]] }
   end
 
+  def varfields
+    self.get_marc_varfields unless @varfields
+    @varfields
+  end
+
   def get_marc_varfields
     # get all varfields where marc tag is not null
     # returns Array of Hashed varfield representations
@@ -329,7 +337,17 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
 
   def blvl
     self.get_ldr unless @blvl
-    return @blvl
+    @blvl
+  end
+
+  def ctrl_type
+    self.get_ldr unless @ctrl_type
+    @ctrl_type
+  end
+
+  def rec_type
+    self.get_ldr unless @rec_type
+    @rec_type
   end
 
   def get_ldr
@@ -337,6 +355,7 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{@record_id}"
     $c.make_query(query)
     @multiple_LDRs_flag = true if $c.results.entries.length >= 2
+    return nil if $c.results.entries.empty?
     myldr = $c.results.entries.first
     @rec_status = myldr['record_status_code']
     @rec_type = myldr['record_type_code']
@@ -416,7 +435,7 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
     mh = {}
     mh['leader'] = self._ldr
     mh['fields'] = []
-    get_marc_varfields if !@varfields_sql
+    get_marc_varfields unless @varfields_sql
     var_control = self.varfields_sql.select { |x| x['marc_tag'] =~ /^00/ }
     var_varfield = self.varfields_sql.reject { |x| x['marc_tag'] =~ /^00/ }
     var_control.each { |f| mh['fields'] << [f['marc_tag'], f['field_content']] }
@@ -508,6 +527,45 @@ Adds hash of values from SierraDNA bib_record_view to SierraBib.bib_record_view:
         f
       end
     end
+  end
+
+  def items
+    @items || self.get_items
+  end
+
+  def get_items
+    # sets and returns @items as array of attached irecs as SierraItem objects
+    attached_item_query = <<-SQL
+      select 'i' || rm.record_num || 'a' as inum
+      from sierra_view.bib_record b
+      inner join sierra_view.bib_record_item_record_link bil on bil.bib_record_id = b.id
+      inner join sierra_view.record_metadata rm on rm.id = bil.item_record_id
+      where b.id = #{@record_id}
+    SQL
+    $c.make_query(attached_item_query)
+    @items = $c.results.values.flatten.map { |inum| SierraItem.new(inum) }
+    @items = nil if @items.empty?
+    return @items
+  end
+
+  def holdings
+    @holdings || self.get_holdings
+  end
+
+  # sets and returns @items as array of attached irecs as cnum strings
+  # TODO: th
+  def get_holdings
+    attached_holdings_query = <<-SQL
+      select 'c' || rm.record_num || 'a' as cnum
+      from sierra_view.bib_record b
+      inner join sierra_view.bib_record_holding_record_link bhl on bhl.bib_record_id = b.id
+      inner join sierra_view.record_metadata rm on rm.id = bhl.holding_record_id
+      where b.id = #{@record_id}
+    SQL
+    $c.make_query(attached_holdings_query)
+    @holdings = $c.results.values.flatten
+    @holdings = nil if @holdings.empty?
+    return @holdings
   end
 end
 
