@@ -10,6 +10,15 @@ module MARC
   class Record
     attr_reader :oclcnum
 
+    def to_mrk
+      mrk = ''
+      mrk += "=LDR  #{self.leader}\n" if self.leader
+      self.fields.each do |f|
+        mrk += "#{f.to_mrk}\n"
+      end
+      mrk
+    end
+
     def oclcnum
       @oclcnum ||= self.get_oclcnum
     end

@@ -1,5 +1,4 @@
-require_relative '../PostgresConnect'
-require_relative '../SierraBib'
+require_relative '../lib/sierra_postgres_utilities.rb'
 
 RSpec.describe SierraBib do
   $c.close if $c
@@ -26,7 +25,7 @@ RSpec.describe SierraBib do
     end
 
     it 'warn if bib identifier not retrieved' do
-      expect(sb2.warnings).to include('No record was found in Sierra for this bnum')
+      expect(sb2.warnings).to include('No record was found in Sierra for this record number')
     end
 
     # TODO: j: how is object numbering supposed to happen? find out, clean up numbers.
@@ -36,17 +35,17 @@ RSpec.describe SierraBib do
     end
 
     it 'warn if bib deleted' do
-      expect(sb00.warnings).to include('This Sierra bib was deleted')
+      expect(sb00.warnings).to include('This Sierra record was deleted')
     end
  
     sb3 = SierraBib.new('bzq6780003')
     it 'warn if bnum starts with letters other than b' do
-      expect(sb3.warnings).to include('Cannot retrieve Sierra bib. Bnum must start with b')
+      expect(sb3.warnings).to include('Cannot retrieve Sierra record. Rnum must start with b')
     end
 
     sb4 = SierraBib.new('b996780003')
     it 'warn if bib identifier not retrieved' do
-      expect(sb4.warnings).to include('No record was found in Sierra for this bnum')
+      expect(sb4.warnings).to include('No record was found in Sierra for this record number')
     end
 
 =begin
@@ -123,25 +122,21 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     end
   end
 
-  describe 'is_suppressed' do
+  describe 'suppressed?' do
 
     sb_1 = SierraBib.new('b5877843')
     it 'returns true if bib is suppressed' do
-      expect(sb_1.is_suppressed?).to eq(true)
+      expect(sb_1.suppressed?).to eq(true)
     end
 
     sb_2 = SierraBib.new('b3260099')
     it 'returns false if bib is unsuppressed' do
-      expect(sb_2.is_suppressed?).to eq(false)
-    end
-
-    it 'sets suppressed boolean when bib exists' do
-      expect(sb_2.suppressed).to eq(false)
+      expect(sb_2.suppressed?).to eq(false)
     end
 
     sb_3 = SierraBib.new('b4576646')
     it 'counts bcode3 == "c" as suppressed' do
-      expect(sb_3.is_suppressed?).to eq(true)
+      expect(sb_3.suppressed?).to eq(true)
     end
   end
 
