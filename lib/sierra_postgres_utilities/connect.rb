@@ -5,9 +5,9 @@ require 'pg'
 begin
   require 'win32ole'
 rescue LoadError
-  puts 'win32ole not found. writing output to .xlsx disabled. win32ole is
+  puts "\n\nwin32ole not found. writing output to .xlsx disabled. win32ole is
     probably not available on linux/mac but should be part of the standard
-    library on Windows installs of Ruby'
+    library on Windows installs of Ruby"
 end
 
 class Connect < PG::Connection
@@ -16,14 +16,16 @@ class Connect < PG::Connection
   attr_reader :emails
 
   def initialize(cred: 'prod')
-    @secrets_dir = File.dirname(__FILE__).to_s
+    @secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
     @prod_cred = YAML.load_file(File.join(@secrets_dir, '/sierra_prod.secret'))
     @test_cred = YAML.load_file(File.join(@secrets_dir, '/sierra_test.secret'))
     @emails = YAML.load_file(File.join(@secrets_dir, '/email.secret'))
     if cred == 'prod'
       @cred = @prod_cred
-    else
+    elsif cred == 'test'
       @cred = @test_cred
+    else
+      @cred = cred
     end
     super(@cred)
   end

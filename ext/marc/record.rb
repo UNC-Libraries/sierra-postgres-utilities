@@ -1,7 +1,23 @@
 module MARC
   #Extend the MARC::Record class with some UNC-specific helpers
+
+  XML_HEADER = <<~XML
+    <?xml version='1.0'?>
+    <collection xmlns='http://www.loc.gov/MARC21/slim' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.loc.gov/MARC21/slim http://www.loc.gov/standards/marcxml/schema/MARC21slim.xsd'>
+  XML
+  XML_FOOTER = '</collection>'
+
   class Record
     attr_reader :oclcnum
+
+    def to_mrk
+      mrk = ''
+      mrk += "=LDR  #{self.leader}\n" if self.leader
+      self.fields.each do |f|
+        mrk += "#{f.to_mrk}\n"
+      end
+      mrk
+    end
 
     def oclcnum
       @oclcnum ||= self.get_oclcnum
@@ -23,7 +39,7 @@ module MARC
         m035oclcnums = self.get_035oclcnums
         @oclcnum = m035oclcnums[0] if m035oclcnums
       end
-      return @oclcnum
+      @oclcnum
     end # def get_oclcnum
 
     def get_035oclcnums
@@ -112,6 +128,24 @@ module MARC
       m035oclcnums = self.get_035oclcnums
       return 0 unless m035oclcnums
       m035oclcnums.length
+    end
+
+    def m035_lacks_oclcnum?
+      # true if 035 lacks sierra oclcnum (e.g. from 001, 035)
+      # even if 035 has some other oclcnum
+      return false unless self.oclcnum
+      my035oclcnums = self.get_035oclcnums
+      return true unless my035oclcnums
+      return false if my035oclcnums.include?(@oclcnum)
+      return true
+    end
+
+    # sorts marc record by tag
+    # ordering of fields with the same tag is retained
+    def sort
+      sorter = self.to_hash
+      sorter['fields'] = sorter['fields'].sort_by { |x| x.keys }
+      MARC::Record.new_from_hash(sorter)
     end
 
   end #class Record
