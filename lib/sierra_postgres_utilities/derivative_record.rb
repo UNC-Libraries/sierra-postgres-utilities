@@ -93,15 +93,14 @@ class DerivativeRecord
     xml << "<record>\n"
     xml << "  <leader>#{self.altmarc.leader}</leader>\n" if self.altmarc.leader
     marc.each do |f|
-      if f.tag =~ /00[135678]/
-        data = self.escape_xml_reserved(f.value)
-        xml << "  <controlfield tag='#{f.tag}'>#{data}</controlfield>\n"
-      else
-        if options[:reverse_xml]
-          xml << "  <datafield ind1='#{f.indicator1}' ind2='#{f.indicator2}' tag='#{f.tag}'>\n"
-        else
-          xml << "  <datafield tag='#{f.tag}' ind1='#{f.indicator1}' ind2='#{f.indicator2}'>\n"
+      if f.tag =~ /^00/
+        # drop /00[249]
+        if f.tag =~ /00[135678]/
+          data = self.escape_xml_reserved(f.value)
+          xml << "  <controlfield tag='#{f.tag}'>#{data}</controlfield>\n"
         end
+      else
+        xml << "  <datafield tag='#{f.tag}' ind1='#{f.indicator1}' ind2='#{f.indicator2}'>\n"
         f.subfields.each do |sf|
           data = self.escape_xml_reserved(sf.value)
           xml << "    <subfield code='#{sf.code}'>#{data.strip}</subfield>\n"

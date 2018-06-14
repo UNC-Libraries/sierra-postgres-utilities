@@ -93,7 +93,7 @@ class SierraRecord
       select *
       from sierra_view.varfield v
       where v.record_id = '#{@record_id}'
-      order by v.marc_tag, v.occ_num, v.id
+      order by v.marc_tag, v.varfield_type_code, v.occ_num, v.id
     SQL
     $c.make_query(query)
     varfields = $c.results.entries.map { |entry|
