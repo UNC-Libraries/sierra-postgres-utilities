@@ -1,6 +1,5 @@
 # coding: utf-8
 require_relative 'record'
-require_relative 'connect'
 require 'marc'
 require_relative '../../ext/marc/record'
 require_relative '../../ext/marc/datafield'
@@ -124,9 +123,9 @@ If all goes well, creates a SierraBib object like so:
     and v.marc_tag in (#{tag_phrase})
     order by marc_tag, occ_num
     SQL
-    $c.make_query(query)
-    return nil if $c.results.entries.empty?
-    varfields = $c.results.entries
+    self.conn.make_query(query)
+    return nil if self.conn.results.entries.empty?
+    varfields = self.conn.results.entries
     varfields.each do |varfield|
       varfield['extracted_content'] = []
       subfields = tags[varfield['marc_tag']]
@@ -209,15 +208,15 @@ If all goes well, creates a SierraBib object like so:
       where control_num in ('6', '7', '8') and record_id = #{@record_id}
       order by occ_num ASC
     SQL
-    $c.make_query(query)
+    self.conn.make_query(query)
     cf = {}
-    m006s = $c.results.values.
+    m006s = self.conn.results.values.
                 select { |r| r[3] == '6'}.
                 map { |f| f[4..21].map{ |x| x.to_s }.join }
-    m007s = $c.results.values.
+    m007s = self.conn.results.values.
                 select { |r| r[3] == '7'}.
                 map { |f| f[4..28].map{ |x| x.to_s }.join }
-    m008s = $c.results.values.
+    m008s = self.conn.results.values.
                 select { |r| r[3] == '8'}.
                 map { |f| f[4..43].map{ |x| x.to_s }.join }
     cf[:m006s] = m006s unless m006s.empty?
@@ -276,10 +275,10 @@ If all goes well, creates a SierraBib object like so:
   def read_ldr
     # ldr building logic from: https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
     query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{@record_id}"
-    $c.make_query(query)
-    @multiple_LDRs_flag = true if $c.results.entries.length >= 2
-    return nil if $c.results.entries.empty?
-    myldr = $c.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
+    self.conn.make_query(query)
+    @multiple_LDRs_flag = true if self.conn.results.entries.length >= 2
+    return nil if self.conn.results.entries.empty?
+    myldr = self.conn.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
     rec_status = myldr[:record_status_code]
     rec_type = myldr[:record_type_code]
     blvl = myldr[:bib_level_code]
@@ -321,9 +320,9 @@ If all goes well, creates a SierraBib object like so:
       from   sierra_view.bib_record_location
       where location_code != 'multi' and bib_record_id = #{@record_id}
     SQL
-    $c.make_query(query)
-    return nil unless $c.results.entries
-    return $c.results.entries.first['bib_locs']
+    self.conn.make_query(query)
+    return nil unless self.conn.results.entries
+    return self.conn.results.entries.first['bib_locs']
   end
 
   def mrk
@@ -464,8 +463,8 @@ If all goes well, creates a SierraBib object like so:
       where b.id = #{@record_id}
       order by link.#{sql_name}s_display_order ASC
     SQL
-    $c.make_query(attached_query)
-    attached = $c.results.values.flatten.map { |rnum| klass.new(rnum) }
+    self.conn.make_query(attached_query)
+    attached = self.conn.results.values.flatten.map { |rnum| klass.new(rnum) }
     attached = nil if attached.empty?
     attached
   end

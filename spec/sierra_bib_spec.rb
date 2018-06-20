@@ -1,9 +1,7 @@
 require_relative '../lib/sierra_postgres_utilities.rb'
 
 RSpec.describe SierraBib do
-  $c.close if $c
-  $c = Connect.new
-
+  
   describe 'initialize' do
     sb1 = SierraBib.new('b1191683')
 

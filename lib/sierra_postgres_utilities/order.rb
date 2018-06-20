@@ -1,5 +1,4 @@
 # coding: utf-8
-require_relative 'connect'
 require_relative 'record'
 
 class SierraOrder < SierraRecord
@@ -53,8 +52,8 @@ class SierraOrder < SierraRecord
       from sierra_view.order_record_cmf cmf
       where cmf.order_record_id = #{@record_id}
     SQL
-    $c.make_query(query)
-    @cmf_data = $c.results.entries.map { |entry|
+    self.conn.make_query(query)
+    @cmf_data = self.conn.results.entries.map { |entry|
       entry.collect { |k,v| [k.to_sym, v] }.to_h
     }
   end

@@ -1,8 +1,5 @@
 require_relative '../lib/sierra_postgres_utilities.rb'
 
-$c.close if $c
-$c = Connect.new
-
 RSpec.describe SierraItem do
 
   describe 'is_oca?' do

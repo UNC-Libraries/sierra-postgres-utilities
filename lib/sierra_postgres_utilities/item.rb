@@ -1,5 +1,4 @@
 # coding: utf-8
-require_relative 'connect'
 require_relative 'record'
 
 class SierraItem < SierraRecord
@@ -17,24 +16,7 @@ class SierraItem < SierraRecord
   @@location_code_map = nil
   @@status_code_map = nil
 
-
-#  $c.make_query(
-#    'select code, name
-#    from sierra_view.itype_property_myuser'
-#  )
-#  @@itype_map = $c.results.values.to_h
-#  $c.make_query(
-#    'select code, name
-#    from sierra_view.location_myuser'
-#  )
-#  @@location_code_map = $c.results.values.to_h
-#
-#  $c.make_query(
-#    'select code, name
-#    from sierra_view.item_status_property_myuser'
-#  )
-#  @@status_code_map = $c.results.values.to_h
-
+  
   def initialize(inum)
     # Must be given an inum that does not include an actual check digit.
     #   Good: 'i2661010a', 'i26610102'
@@ -161,11 +143,11 @@ class SierraItem < SierraRecord
       from sierra_view.checkout c
       where c.item_record_id = #{@record_id}
     SQL
-    $c.make_query(query)
+    self.conn.make_query(query)
     # items not checked out have no checkout data
     # set a flag so we don't recheck
     @queried_checkout_data = true
-    @checkout_data = $c.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
+    @checkout_data = self.conn.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
   end
 
   def due_date(strformat: '%Y%m%d')
@@ -190,27 +172,27 @@ class SierraItem < SierraRecord
   end
 
   def self.load_itype_descs
-    $c.make_query(
+    self.conn.make_query(
       'select code, name
       from sierra_view.itype_property_myuser'
     )
-    @@itype_map = $c.results.values.to_h
+    @@itype_map = self.conn.results.values.to_h
   end
   
   def self.load_location_descs
-    $c.make_query(
+    self.conn.make_query(
       'select code, name
       from sierra_view.location_myuser'
     )
-    @@location_code_map = $c.results.values.to_h
+    @@location_code_map = self.conn.results.values.to_h
   end
 
   def self.load_status_descs
-    $c.make_query(
+    self.conn.make_query(
       'select code, name
       from sierra_view.item_status_property_myuser'
     )
-    @@status_code_map = $c.results.values.to_h
+    @@status_code_map = self.conn.results.values.to_h
   end
 
 

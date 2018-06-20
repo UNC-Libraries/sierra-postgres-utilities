@@ -10,36 +10,53 @@ rescue LoadError
     library on Windows installs of Ruby"
 end
 
-class Connect < PG::Connection
-  attr_reader :results
-  attr_reader :query
-  attr_reader :emails
+module SierraDB
 
-  def initialize(cred: 'prod')
-    @secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
-    @prod_cred = YAML.load_file(File.join(@secrets_dir, '/sierra_prod.secret'))
-    @test_cred = YAML.load_file(File.join(@secrets_dir, '/sierra_test.secret'))
-    @emails = YAML.load_file(File.join(@secrets_dir, '/email.secret'))
+  def self.conn(cred: 'prod')
+    @conn ||= self.make_connection(cred: cred)
+  end
+
+  def self.connect_as(cred: )
+    @conn.close if @conn
+    @conn = self.make_connection(cred: cred)
+  end
+
+  def self.make_connection(cred:)
+    @@secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
+    @@prod_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_prod.secret'))
+    @@test_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_test.secret'))
+    @@emails = YAML.load_file(File.join(@@secrets_dir, '/email.secret'))
     if cred == 'prod'
-      @cred = @prod_cred
+      @@cred = @@prod_cred
     elsif cred == 'test'
-      @cred = @test_cred
+      @@cred = @@test_cred
     else
-      @cred = cred
+      @@cred = cred
     end
-    super(@cred)
+    PG::Connection.new(@@cred)
   end
 
-  def inspect
-    self.to_s
+  def self.headers
+    @results.fields
   end
 
-  def make_query(query)
+  def self.results
+    @results
+  end
+
+  def self.query
+    @query
+  end
+
+  def self.data
+    @results.entries
+  end
+
+  def self.make_query(query)
     return run_query(query)
   end  
 
-
-  def write_results(outfile, results: @results, headers: @headers, include_headers: true, format: 'tsv')
+  def self.write_results(outfile, results: @results, headers: @headers, include_headers: true, format: 'tsv')
     # needs relative path for xlsx output
     puts 'writing results'
     unless include_headers
@@ -57,22 +74,22 @@ class Connect < PG::Connection
     end
   end
 
-  def mail_results(outfile, mail_details, remove_file: false)
+  def self.mail_results(outfile, mail_details, remove_file: false)
     send_mail(outfile, mail_details, remove_file: remove_file)
   end
 
-  def yield_email(index='')
+  def self.yield_email(index='')
     unless index.empty?
       return @emails[index]
     end
-    return @emails['default_email']
+    return @@emails['default_email']
   end
 
-  def write_tsv(outfile, results, headers)
+  def self.write_tsv(outfile, results, headers)
     write_csv(outfile, results, headers, col_sep: "\t")
   end
 
-  def write_csv(outfile, results, headers, col_sep: ",")
+  def self.write_csv(outfile, results, headers, col_sep: ",")
     CSV.open(outfile, 'wb', col_sep: col_sep) do |csv|
       if !headers.empty?
         csv << headers
@@ -83,7 +100,7 @@ class Connect < PG::Connection
     end
   end
 
-  def write_xlsx(outfile, results, headers)
+  def self.rite_xlsx(outfile, results, headers)
     unless defined?(WIN32OLE)
       raise 'WIN32OLE not loaded; cannot write to xlsx file'
     end
@@ -110,7 +127,7 @@ class Connect < PG::Connection
     excel.quit()
   end
 
-  def send_mail(outfile, mail_details, remove_file: false)
+  def self.send_mail(outfile, mail_details, remove_file: false)
     Mail.defaults do
       delivery_method :smtp, address: "relay.unc.edu", port: 25
     end
@@ -132,12 +149,9 @@ class Connect < PG::Connection
   #   query = "SELECT * FROM table WHERE a = 2 and b like 'thing'"
   # or as a file containing such a string
   #
-  def run_query(query)
+  def self.run_query(query)
     @query = File.file?(query) ? File.read(query) : query
     #puts 'running query'
-    @results = self.exec(@query)
-    @headers = @results.fields
+    @results = self.conn.exec(@query)
   end
-
 end
-

@@ -1,5 +1,4 @@
 # coding: utf-8
-require_relative 'connect'
 require_relative 'record'
 
 class SierraHoldings < SierraRecord

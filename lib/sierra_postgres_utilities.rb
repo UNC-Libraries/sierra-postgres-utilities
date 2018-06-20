@@ -1,4 +1,4 @@
-require_relative 'sierra_postgres_utilities/connect'
+require_relative 'sierra_postgres_utilities/sierradb'
 require_relative 'sierra_postgres_utilities/record'
 require_relative 'sierra_postgres_utilities/bib'
 require_relative 'sierra_postgres_utilities/item'

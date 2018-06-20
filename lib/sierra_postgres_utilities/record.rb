@@ -1,8 +1,18 @@
 # coding: utf-8
-require_relative 'connect'
+require_relative 'sierradb'
 
 class SierraRecord
   attr_reader :rnum, :given_rnum, :record_id, :deleted, :warnings
+
+  #@@conn = SierraDB
+#
+  #def self.conn
+  #  @@conn
+  #end
+
+  def conn
+    SierraDB
+  end
 
   def initialize(rnum:, rtype:)
     # Must be given an rnum that does not include an actual check digit.
@@ -59,18 +69,18 @@ class SierraRecord
     # unless the calculation of a record_id when one isn't found is helpful
     #  in a way I'm missing (seems like a liability), prefer to not use
     #  that function --kms
-    $c.make_query(
+    self.conn.make_query(
       "select id, deletion_date_gmt
       from sierra_view.record_metadata
       where record_type_code = \'#{self.rtype}\' 
       and record_num = \'#{recnum}\'"
     )
-    if $c.results.values.empty?
+    if self.conn.results.values.empty?
       return nil
     else
-      deletion_date = $c.results.values[0][1]
+      deletion_date = self.conn.results.values[0][1]
       @deleted = deletion_date ? true : false
-      return $c.results.values[0][0]
+      return self.conn.results.values[0][0]
     end
   end
 
@@ -95,8 +105,8 @@ class SierraRecord
       where v.record_id = '#{@record_id}'
       order by v.marc_tag, v.varfield_type_code, v.occ_num, v.id
     SQL
-    $c.make_query(query)
-    varfields = $c.results.entries.map { |entry|
+    self.conn.make_query(query)
+    varfields = self.conn.results.entries.map { |entry|
       entry.collect { |k,v| [k.to_sym, v] }.to_h
     }
   end
@@ -177,8 +187,8 @@ class SierraRecord
       from sierra_view.#{sql_name}_record r
       where r.id = #{@record_id}
     SQL
-    $c.make_query(query)
-    @rec_data = $c.results.entries[0].collect { |k,v| [k.to_sym, v] }.to_h
+    self.conn.make_query(query)
+    @rec_data = self.conn.results.entries[0].collect { |k,v| [k.to_sym, v] }.to_h
   end
 
   def rec_metadata
@@ -191,8 +201,8 @@ class SierraRecord
       from sierra_view.record_metadata rm
       where rm.id = #{@record_id}
     SQL
-    $c.make_query(query)
-    @rec_data = $c.results.entries[0].collect { |k,v| [k.to_sym, v] }.to_h
+    self.conn.make_query(query)
+    @rec_data = self.conn.results.entries[0].collect { |k,v| [k.to_sym, v] }.to_h
   end
 
   def created_date(strformat: '%Y%m%d')
