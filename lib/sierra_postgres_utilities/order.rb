@@ -2,7 +2,7 @@
 require_relative 'record'
 
 class SierraOrder < SierraRecord
-  attr_reader :onum, :given_onum, :record_id, :deleted, :suppressed, :warnings
+  attr_reader :onum, :given_onum, :suppressed
 
   @@rtype = 'o'
   @@sql_name =  'order'

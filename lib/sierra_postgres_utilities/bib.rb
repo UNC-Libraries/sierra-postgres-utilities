@@ -6,8 +6,7 @@ require_relative '../../ext/marc/datafield'
 
 
 class SierraBib < SierraRecord
-  attr_reader :record_id, :bnum, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :warnings, :given_bnum, :deleted, :multiple_LDRs_flag
-
+  attr_reader :bnum, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :given_bnum, :multiple_LDRs_flag
 
   # use self.rec_data
   # @rec_data=
@@ -26,9 +25,7 @@ class SierraBib < SierraRecord
   #  "cataloging_date_gmt"=>"2004-10-01 00:00:00-04",
   #  "marc_type_code"=>" "}
 
-
   attr_accessor :stub, :items
-
 
   @rtype = 'b'
   @sql_name = 'bib'
@@ -62,7 +59,7 @@ If all goes well, creates a SierraBib object like so:
  @record_id="420907889860",
  @warnings=[]>
 =end    
-    super(rnum: bnum, rtype: self.rtype)
+    super(rnum: bnum, rtype: rtype)
     @given_bnum = @given_rnum
     @bnum = @rnum
   end
@@ -70,13 +67,13 @@ If all goes well, creates a SierraBib object like so:
   # @bnum           = b1094852a
   # bnum_trunc      = b1094852
   def bnum_trunc
-    self.rnum_trunc
+    rnum_trunc
   end
 
   # @bnum           = b1094852a
   # bnum_with_check = b10948521
   def bnum_with_check
-    self.rnum_with_check
+    rnum_with_check
   end
 
 
@@ -123,14 +120,14 @@ If all goes well, creates a SierraBib object like so:
     and v.marc_tag in (#{tag_phrase})
     order by marc_tag, occ_num
     SQL
-    self.conn.make_query(query)
-    return nil if self.conn.results.entries.empty?
-    varfields = self.conn.results.entries
+    conn.make_query(query)
+    return nil if conn.results.entries.empty?
+    varfields = conn.results.entries
     varfields.each do |varfield|
       varfield['extracted_content'] = []
       subfields = tags[varfield['marc_tag']]
       subfields.each do |subfield|
-        varfield['extracted_content'] << self.extract_subfields(varfield['field_content'], subfield, trim_punct: true)
+        varfield['extracted_content'] << extract_subfields(varfield['field_content'], subfield, trim_punct: true)
       end
     end
     return varfields
@@ -195,57 +192,53 @@ If all goes well, creates a SierraBib object like so:
   end
 
   def get_marc_varfields
-    self.marc_varfields
+    marc_varfields
   end
 
-  # just what iii has in sierra_view.control_field
-  # i.e. 006, 007, 008; not 001, 003, 005
-  # ordered by marc_tag, occ_num
+  # Returns all of a records control fields
+  def control_fields
+    @control_fields ||= read_control_fields
+  end
+
+  
+  # Returns all control fields as array of sql result hashes
+  # Gathers 006/007/008 stored in control_field and any 00X in varfield)
+  # Fields in control_field are given proper marc_tag and field_content entries
+  # e.g.
+  # [{:id=>"63824254", ... :marc_tag=>"001", ... :field_content=>"830511"},
+  #  {:id=>"63824283", ... :marc_tag=>"003", ... :field_content=>"OCoLC"},
+  #  {:id=>"90120881", ... :control_num=>"8", :p00=>"7", ...:marc_tag=>"008",
+  #     :field_content=>"740314c19719999oncqr4p  s   f0   a0eng d"}]
   def read_control_fields
-    query = <<-SQL 
+    var_control = self.marc_varfields.
+                       select { |tag, fields| tag =~ /^00/ }.
+                       values.flatten
+    query = <<-SQL
       select *
-      from sierra_view.control_field
+      from sierra_view.control_field cf
       where control_num in ('6', '7', '8') and record_id = #{@record_id}
-      order by occ_num ASC
+      order by cf.control_num, cf.varfield_type_code, cf.occ_num, cf.id ASC
     SQL
     self.conn.make_query(query)
-    cf = {}
-    m006s = self.conn.results.values.
-                select { |r| r[3] == '6'}.
-                map { |f| f[4..21].map{ |x| x.to_s }.join }
-    m007s = self.conn.results.values.
-                select { |r| r[3] == '7'}.
-                map { |f| f[4..28].map{ |x| x.to_s }.join }
-    m008s = self.conn.results.values.
-                select { |r| r[3] == '8'}.
-                map { |f| f[4..43].map{ |x| x.to_s }.join }
-    cf[:m006s] = m006s unless m006s.empty?
-    cf[:m007s] = m007s unless m007s.empty?
-    cf[:m008s] = m008s unless m008s.empty?
-    cf
-  end
-
-  # only sierra_view.control_fields (and only 006/007/008)
-  def control_fields
-    @control_fields ||= self.read_control_fields
-  end
-
-  def m006s
-    self.control_fields[:m006s]
-  end
-
-  def m007s
-    self.control_fields[:m007s]
-  end
-
-  def m008s
-    self.control_fields[:m008s]
+    self.conn.results.entries.each do |entry|
+      entry = entry.collect { |k,v| [k.to_sym, v] }.to_h
+      control_num = entry[:control_num]
+      if %w[6 7 8].include?(control_num)
+        marc_tag = "00#{control_num}"
+        value = entry.values[4..43].map{ |x| x.to_s }.join
+        value.strip! unless control_num == '8'
+        entry[:marc_tag] = marc_tag
+        entry[:field_content] = value
+        var_control << entry
+      end
+    end
+    var_control
   end
 
   # returns leader as string
   def ldr
     return @ldr if @ldr
-    self.read_ldr
+    read_ldr
     @ldr
   end
 
@@ -255,30 +248,33 @@ If all goes well, creates a SierraBib object like so:
   end
 
   def blvl
-    self.ldr_data[:bib_level_code]
+    ldr_data[:bib_level_code]
   end
 
   def ctrl_type
-    self.ldr_data[:ctrl_type]
+    ldr_data[:control_type_code]
   end
 
   def rec_type
-    self.ldr_data[:rec_type]
+    ldr_data[:record_type_code]
   end
-
-  # temp back compatability
-  def get_ldr
-    self.read_ldr
-  end
-
 
   def read_ldr
     # ldr building logic from: https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
     query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{@record_id}"
-    self.conn.make_query(query)
-    @multiple_LDRs_flag = true if self.conn.results.entries.length >= 2
-    return nil if self.conn.results.entries.empty?
-    myldr = self.conn.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
+    conn.make_query(query)
+    @multiple_LDRs_flag = true if conn.results.entries.length >= 2
+    if conn.results.entries.empty?
+      @ldr = nil
+      @ldr_data = {}
+      return @ldr_data
+    end
+    myldr = conn.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
+    @ldr = ldr_data_to_string(myldr)
+    @ldr_data = myldr
+  end
+
+  def ldr_data_to_string(myldr)
     rec_status = myldr[:record_status_code]
     rec_type = myldr[:record_type_code]
     blvl = myldr[:bib_level_code]
@@ -296,87 +292,69 @@ If all goes well, creates a SierraBib object like so:
     @ldr = "#{rec_length}#{rec_status}#{rec_type}#{blvl}#{ctrl_type}"   \
            "#{char_enc}#{indicator_ct}#{subf_ct}#{base_address}#{elvl}" \
            "#{desc_form}#{multipart}#{ldr_end}"
-    @ldr_data = myldr
   end
 
   def bcode1_blvl
     # this usually, but not always, is the same as LDR/07(set as @blvl)
     # and in cases where they do not agree, it has seemed that
     # MAYBE bcode1 is more accurate and iii failed to update the LDR/07
-    self.rec_data[:bcode1]
+    rec_data[:bcode1]
   end
 
   def mat_type
-    self.rec_data[:bcode2]
+    rec_data[:bcode2]
   end
 
   def bib_locs
-    @bib_locs ||= self.get_bib_locs
+    @bib_locs ||= get_bib_locs
   end
 
+  # returns array of strings
   def get_bib_locs
     query = <<-SQL
-      select STRING_AGG(Trim(trailing FROM location_code), ', ' order by id) AS bib_locs
+      select STRING_AGG(Trim(trailing FROM location_code), ';;;' order by id) AS bib_locs
       from   sierra_view.bib_record_location
       where location_code != 'multi' and bib_record_id = #{@record_id}
     SQL
-    self.conn.make_query(query)
-    return nil unless self.conn.results.entries
-    return self.conn.results.entries.first['bib_locs']
+    conn.make_query(query)
+    return nil unless conn.results.entries
+    return conn.results.entries.first['bib_locs'].split(';;;')
   end
 
   def mrk
-    self.marc.to_mrk
+    marc.to_mrk
   end
 
   def marchash
     mh = {}
-    mh['leader'] = self.ldr
+    mh['leader'] = ldr
     mh['fields'] = []
-    # get any 001/003/005 control fields stored in sierra_view.varfield
-    var_control = self.marc_varfields.
-                       select { |tag, fields| tag =~ /^00/ }.
-                       values.flatten
-    var_varfield = self.marc_varfields.
-                        reject { |tag, fields| tag =~ /^00/ }.
-                        values.flatten
-    var_control.each { |f| mh['fields'] << [f[:marc_tag], f[:field_content]] }
-    self.m006s&.each { |field| mh['fields'] << ['006', field] }
-    self.m007s&.each { |field| mh['fields'] << ['007', field] }
-    self.m008s&.each { |field| mh['fields'] << ['008', field] }
-    var_varfield.each do |field|
-      mh['fields'] << [field[:marc_tag], field[:marc_ind1],
-                       field[:marc_ind2],
-                       self.subfield_arry(field[:field_content].strip)
-                      ]
+
+    # add control fields stored in control_field or varfield
+    control_fields.each do |cf|
+      mh['fields'] << [cf[:marc_tag], cf[:field_content]]
     end
-    return mh
+
+    # add data fields stored in varfield
+    var_varfield = self.marc_varfields.
+      reject { |tag, fields| tag =~ /^00/ }.
+      values.flatten
+    var_varfield.each do |vf|
+      mh['fields'] << [vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
+                       subfield_arry(vf[:field_content].strip)]
+    end
+    mh
   end
 
   def marc
-    @marc ||= MARC::Record.new_from_marchash(self.marchash)
+    @marc ||= MARC::Record.new_from_marchash(marchash)
   end
 
-  def xmlify_varfield(tag, varfield_hash)
-    ind1 = varfield_hash[:ind1]
-    ind2 = varfield_hash[:ind2]
-    field_content = varfield_hash[:field_content]
-    subfields = self.subfield_arry(field_content)
-    xml = "<datafield tag=\"#{tag}\" ind1=\"#{ind1}\" ind2=\"#{ind2}\">\n"
-    subfields.each do |subfield, content|
-      xml += "  <subfield code=\"#{subfield}\">#{content}</subfield>\n"
-    end
-    xml += "</datafield>"
-    return xml
-  end
-
+  # deprecated
   # returns [008/35-37, full language name]
   # if invalid language code, returns [008/35-37, nil]
   def lang008
-    return nil unless self.m008s
-    code = self.m008s.first[35..37]
-    language = $marc_language_codes[code.to_sym]
-    return [code, language]
+    @marc.language_from_008
   end
 
   def oclcnum
@@ -384,7 +362,7 @@ If all goes well, creates a SierraBib object like so:
     #   any kind of explicit find_oclcnum first
     # We could also set the oclcnum manually and have that
     #   given value returned
-    @oclcnum ||= self.marc.oclcnum
+    @oclcnum ||= marc.oclcnum
   end  
 
   def fake_leader
@@ -408,23 +386,6 @@ If all goes well, creates a SierraBib object like so:
     load_note = 'Batch load history: 999 Something records loaded 20180000, xxx.'
     @stub << MARC::DataField.new('944', ' ', ' ', ['a', "#{load_note}"])
     return @stub
-  end
-
-  def get_varfields_as_marc(tags)
-    # returns array of MARC DataField objects
-    # Any fields < '010' Sierra has in sierra_view.varfield
-    #  get returned as a MARC ControlField object
-    varfields = self.get_varfields(tags)
-    varfields.map! do |v|
-      if v['marc_tag'] =~ /00[0-9]/
-        f = MARC::ControlField.new(v['marc_tag'], v['field_content'])
-      else
-        subfields = self.subfield_arry(v['field_content'])        
-        f = MARC::DataField.new(v['marc_tag'], v['marc_ind1'], v['marc_ind2'])
-        subfields.each { |code, value| f.append(MARC::Subfield.new(code, value)) }
-        f
-      end
-    end
   end
 
   # sets and returns @items as array of attached irecs as SierraItem objects
@@ -507,529 +468,4 @@ If all goes well, creates a SierraBib object like so:
     my_colls.delete(nil)
     @collections = my_colls
   end
-
-  # below: things used only in the sfc/do we own this scripts
-  # we should not worry atm if we break things here
-
-
-  # end: things used only in the sfc/do we own this scripts
 end
-
-
-$marc_language_codes = {
-  aar: 'Afar',
-  abk: 'Abkhaz',
-  ace: 'Achinese',
-  ach: 'Acoli',
-  ada: 'Adangme',
-  ady: 'Adygei',
-  afa: 'Afroasiatic (Other)',
-  afh: 'Afrihili (Artificial language)',
-  afr: 'Afrikaans',
-  ain: 'Ainu',
-  ajm: 'Aljamía',  #discontinued
-  aka: 'Akan',
-  akk: 'Akkadian',
-  alb: 'Albanian',
-  ale: 'Aleut',
-  alg: 'Algonquian (Other)',
-  alt: 'Altai',
-  amh: 'Amharic',
-  ang: 'English, Old (ca. 450-1100)',
-  anp: 'Angika',
-  apa: 'Apache languages',
-  ara: 'Arabic',
-  arc: 'Aramaic',
-  arg: 'Aragonese',
-  arm: 'Armenian',
-  arn: 'Mapuche',
-  arp: 'Arapaho',
-  art: 'Artificial (Other)',
-  arw: 'Arawak',
-  asm: 'Assamese',
-  ast: 'Bable',
-  ath: 'Athapascan (Other)',
-  aus: 'Australian languages',
-  ava: 'Avaric',
-  ave: 'Avestan',
-  awa: 'Awadhi',
-  aym: 'Aymara',
-  aze: 'Azerbaijani',
-  bad: 'Banda languages',
-  bai: 'Bamileke languages',
-  bak: 'Bashkir',
-  bal: 'Baluchi',
-  bam: 'Bambara',
-  ban: 'Balinese',
-  baq: 'Basque',
-  bas: 'Basa',
-  bat: 'Baltic (Other)',
-  bej: 'Beja',
-  bel: 'Belarusian',
-  bem: 'Bemba',
-  ben: 'Bengali',
-  ber: 'Berber (Other)',
-  bho: 'Bhojpuri',
-  bih: 'Bihari (Other)',
-  bik: 'Bikol',
-  bin: 'Edo',
-  bis: 'Bislama',
-  bla: 'Siksika',
-  bnt: 'Bantu (Other)',
-  bos: 'Bosnian',
-  bra: 'Braj',
-  bre: 'Breton',
-  btk: 'Batak',
-  bua: 'Buriat',
-  bug: 'Bugis',
-  bul: 'Bulgarian',
-  bur: 'Burmese',
-  byn: 'Bilin',
-  cad: 'Caddo',
-  cai: 'Central American Indian (Other)',
-  cam: 'Khmer',  #discontinued
-  car: 'Carib',
-  cat: 'Catalan',
-  cau: 'Caucasian (Other)',
-  ceb: 'Cebuano',
-  cel: 'Celtic (Other)',
-  cha: 'Chamorro',
-  chb: 'Chibcha',
-  che: 'Chechen',
-  chg: 'Chagatai',
-  chi: 'Chinese',
-  chk: 'Chuukese',
-  chm: 'Mari',
-  chn: 'Chinook jargon',
-  cho: 'Choctaw',
-  chp: 'Chipewyan',
-  chr: 'Cherokee',
-  chu: 'Church Slavic',
-  chv: 'Chuvash',
-  chy: 'Cheyenne',
-  cmc: 'Chamic languages',
-  cop: 'Coptic',
-  cor: 'Cornish',
-  cos: 'Corsican',
-  cpe: 'Creoles and Pidgins, English-based (Other)',
-  cpf: 'Creoles and Pidgins, French-based (Other)',
-  cpp: 'Creoles and Pidgins, Portuguese-based (Other)',
-  cre: 'Cree',
-  crh: 'Crimean Tatar',
-  crp: 'Creoles and Pidgins (Other)',
-  csb: 'Kashubian',
-  cus: 'Cushitic (Other)',
-  cze: 'Czech',
-  dak: 'Dakota',
-  dan: 'Danish',
-  dar: 'Dargwa',
-  day: 'Dayak',
-  del: 'Delaware',
-  den: 'Slavey',
-  dgr: 'Dogrib',
-  din: 'Dinka',
-  div: 'Divehi',
-  doi: 'Dogri',
-  dra: 'Dravidian (Other)',
-  dsb: 'Lower Sorbian',
-  dua: 'Duala',
-  dum: 'Dutch, Middle (ca. 1050-1350)',
-  dut: 'Dutch',
-  dyu: 'Dyula',
-  dzo: 'Dzongkha',
-  efi: 'Efik',
-  egy: 'Egyptian',
-  eka: 'Ekajuk',
-  elx: 'Elamite',
-  eng: 'English',
-  enm: 'English, Middle (1100-1500)',
-  epo: 'Esperanto',
-  esk: 'Eskimo languages',  #discontinued
-  esp: 'Esperanto',  #discontinued
-  est: 'Estonian',
-  eth: 'Ethiopic',  #discontinued
-  ewe: 'Ewe',
-  ewo: 'Ewondo',
-  fan: 'Fang',
-  fao: 'Faroese',
-  far: 'Faroese',  #discontinued
-  fat: 'Fanti',
-  fij: 'Fijian',
-  fil: 'Filipino',
-  fin: 'Finnish',
-  fiu: 'Finno-Ugrian (Other)',
-  fon: 'Fon',
-  fre: 'French',
-  fri: 'Frisian',  #discontinued
-  frm: 'French, Middle (ca. 1300-1600)',
-  fro: 'French, Old (ca. 842-1300)',
-  frr: 'North Frisian',
-  frs: 'East Frisian',
-  fry: 'Frisian',
-  ful: 'Fula',
-  fur: 'Friulian',
-  gaa: 'Gã',
-  gae: 'Scottish Gaelix',  #discontinued
-  gag: 'Galician',  #discontinued
-  gal: 'Oromo',  #discontinued
-  gay: 'Gayo',
-  gba: 'Gbaya',
-  gem: 'Germanic (Other)',
-  geo: 'Georgian',
-  ger: 'German',
-  gez: 'Ethiopic',
-  gil: 'Gilbertese',
-  gla: 'Scottish Gaelic',
-  gle: 'Irish',
-  glg: 'Galician',
-  glv: 'Manx',
-  gmh: 'German, Middle High (ca. 1050-1500)',
-  goh: 'German, Old High (ca. 750-1050)',
-  gon: 'Gondi',
-  gor: 'Gorontalo',
-  got: 'Gothic',
-  grb: 'Grebo',
-  grc: 'Greek, Ancient (to 1453)',
-  gre: 'Greek, Modern (1453-)',
-  grn: 'Guarani',
-  gsw: 'Swiss German',
-  gua: 'Guarani',  #discontinued
-  guj: 'Gujarati',
-  gwi: 'Gwich\'in',
-  hai: 'Haida',
-  hat: 'Haitian French Creole',
-  hau: 'Hausa',
-  haw: 'Hawaiian',
-  heb: 'Hebrew',
-  her: 'Herero',
-  hil: 'Hiligaynon',
-  him: 'Western Pahari languages',
-  hin: 'Hindi',
-  hit: 'Hittite',
-  hmn: 'Hmong',
-  hmo: 'Hiri Motu',
-  hrv: 'Croatian',
-  hsb: 'Upper Sorbian',
-  hun: 'Hungarian',
-  hup: 'Hupa',
-  iba: 'Iban',
-  ibo: 'Igbo',
-  ice: 'Icelandic',
-  ido: 'Ido',
-  iii: 'Sichuan Yi',
-  ijo: 'Ijo',
-  iku: 'Inuktitut',
-  ile: 'Interlingue',
-  ilo: 'Iloko',
-  ina: 'Interlingua (International Auxiliary Language Association)',
-  inc: 'Indic (Other)',
-  ind: 'Indonesian',
-  ine: 'Indo-European (Other)',
-  inh: 'Ingush',
-  int: 'Interlingua (International Auxiliary Language Association)',  #discontinued
-  ipk: 'Inupiaq',
-  ira: 'Iranian (Other)',
-  iri: 'Irish',  #discontinued
-  iro: 'Iroquoian (Other)',
-  ita: 'Italian',
-  jav: 'Javanese',
-  jbo: 'Lojban (Artificial language)',
-  jpn: 'Japanese',
-  jpr: 'Judeo-Persian',
-  jrb: 'Judeo-Arabic',
-  kaa: 'Kara-Kalpak',
-  kab: 'Kabyle',
-  kac: 'Kachin',
-  kal: 'Kalâtdlisut',
-  kam: 'Kamba',
-  kan: 'Kannada',
-  kar: 'Karen languages',
-  kas: 'Kashmiri',
-  kau: 'Kanuri',
-  kaw: 'Kawi',
-  kaz: 'Kazakh',
-  kbd: 'Kabardian',
-  kha: 'Khasi',
-  khi: 'Khoisan (Other)',
-  khm: 'Khmer',
-  kho: 'Khotanese',
-  kik: 'Kikuyu',
-  kin: 'Kinyarwanda',
-  kir: 'Kyrgyz',
-  kmb: 'Kimbundu',
-  kok: 'Konkani',
-  kom: 'Komi',
-  kon: 'Kongo',
-  kor: 'Korean',
-  kos: 'Kosraean',
-  kpe: 'Kpelle',
-  krc: 'Karachay-Balkar',
-  krl: 'Karelian',
-  kro: 'Kru (Other)',
-  kru: 'Kurukh',
-  kua: 'Kuanyama',
-  kum: 'Kumyk',
-  kur: 'Kurdish',
-  kus: 'Kusaie',  #discontinued
-  kut: 'Kootenai',
-  lad: 'Ladino',
-  lah: 'Lahndā',
-  lam: 'Lamba (Zambia and Congo)',
-  lan: 'Occitan (post 1500)',  #discontinued
-  lao: 'Lao',
-  lap: 'Sami',  #discontinued
-  lat: 'Latin',
-  lav: 'Latvian',
-  lez: 'Lezgian',
-  lim: 'Limburgish',
-  lin: 'Lingala',
-  lit: 'Lithuanian',
-  lol: 'Mongo-Nkundu',
-  loz: 'Lozi',
-  ltz: 'Luxembourgish',
-  lua: 'Luba-Lulua',
-  lub: 'Luba-Katanga',
-  lug: 'Ganda',
-  lui: 'Luiseño',
-  lun: 'Lunda',
-  luo: 'Luo (Kenya and Tanzania)',
-  lus: 'Lushai',
-  mac: 'Macedonian',
-  mad: 'Madurese',
-  mag: 'Magahi',
-  mah: 'Marshallese',
-  mai: 'Maithili',
-  mak: 'Makasar',
-  mal: 'Malayalam',
-  man: 'Mandingo',
-  mao: 'Maori',
-  map: 'Austronesian (Other)',
-  mar: 'Marathi',
-  mas: 'Maasai',
-  max: 'Manx',  #discontinued
-  may: 'Malay',
-  mdf: 'Moksha',
-  mdr: 'Mandar',
-  men: 'Mende',
-  mga: 'Irish, Middle (ca. 1100-1550)',
-  mic: 'Micmac',
-  min: 'Minangkabau',
-  mis: 'Miscellaneous languages',
-  mkh: 'Mon-Khmer (Other)',
-  mla: 'Malagasy',  #discontinued
-  mlg: 'Malagasy',
-  mlt: 'Maltese',
-  mnc: 'Manchu',
-  mni: 'Manipuri',
-  mno: 'Manobo languages',
-  moh: 'Mohawk',
-  mol: 'Moldavian',  #discontinued
-  mon: 'Mongolian',
-  mos: 'Mooré',
-  mul: 'Multiple languages',
-  mun: 'Munda (Other)',
-  mus: 'Creek',
-  mwl: 'Mirandese',
-  mwr: 'Marwari',
-  myn: 'Mayan languages',
-  myv: 'Erzya',
-  nah: 'Nahuatl',
-  nai: 'North American Indian (Other)',
-  nap: 'Neapolitan Italian',
-  nau: 'Nauru',
-  nav: 'Navajo',
-  nbl: 'Ndebele (South Africa)',
-  nde: 'Ndebele (Zimbabwe)',
-  ndo: 'Ndonga',
-  nds: 'Low German',
-  nep: 'Nepali',
-  new: 'Newari',
-  nia: 'Nias',
-  nic: 'Niger-Kordofanian (Other)',
-  niu: 'Niuean',
-  nno: 'Norwegian (Nynorsk)',
-  nob: 'Norwegian (Bokmål)',
-  nog: 'Nogai',
-  non: 'Old Norse',
-  nor: 'Norwegian',
-  nqo: 'N\'Ko',
-  nso: 'Northern Sotho',
-  nub: 'Nubian languages',
-  nwc: 'Newari, Old',
-  nya: 'Nyanja',
-  nym: 'Nyamwezi',
-  nyn: 'Nyankole',
-  nyo: 'Nyoro',
-  nzi: 'Nzima',
-  oci: 'Occitan (post-1500)',
-  oji: 'Ojibwa',
-  ori: 'Oriya',
-  orm: 'Oromo',
-  osa: 'Osage',
-  oss: 'Ossetic',
-  ota: 'Turkish, Ottoman',
-  oto: 'Otomian languages',
-  paa: 'Papuan (Other)',
-  pag: 'Pangasinan',
-  pal: 'Pahlavi',
-  pam: 'Pampanga',
-  pan: 'Panjabi',
-  pap: 'Papiamento',
-  pau: 'Palauan',
-  peo: 'Old Persian (ca. 600-400 B.C.)',
-  per: 'Persian',
-  phi: 'Philippine (Other)',
-  phn: 'Phoenician',
-  pli: 'Pali',
-  pol: 'Polish',
-  pon: 'Pohnpeian',
-  por: 'Portuguese',
-  pra: 'Prakrit languages',
-  pro: 'Provençal (to 1500)',
-  pus: 'Pushto',
-  que: 'Quechua',
-  raj: 'Rajasthani',
-  rap: 'Rapanui',
-  rar: 'Rarotongan',
-  roa: 'Romance (Other)',
-  roh: 'Raeto-Romance',
-  rom: 'Romani',
-  rum: 'Romanian',
-  run: 'Rundi',
-  rup: 'Aromanian',
-  rus: 'Russian',
-  sad: 'Sandawe',
-  sag: 'Sango (Ubangi Creole)',
-  sah: 'Yakut',
-  sai: 'South American Indian (Other)',
-  sal: 'Salishan languages',
-  sam: 'Samaritan Aramaic',
-  san: 'Sanskrit',
-  sao: 'Samoan',  #discontinued
-  sas: 'Sasak',
-  sat: 'Santali',
-  scc: 'Serbian',  #discontinued
-  scn: 'Sicilian Italian',
-  sco: 'Scots',
-  scr: 'Croatian',  #discontinued
-  sel: 'Selkup',
-  sem: 'Semitic (Other)',
-  sga: 'Irish, Old (to 1100)',
-  sgn: 'Sign languages',
-  shn: 'Shan',
-  sho: 'Shona',  #discontinued
-  sid: 'Sidamo',
-  sin: 'Sinhalese',
-  sio: 'Siouan (Other)',
-  sit: 'Sino-Tibetan (Other)',
-  sla: 'Slavic (Other)',
-  slo: 'Slovak',
-  slv: 'Slovenian',
-  sma: 'Southern Sami',
-  sme: 'Northern Sami',
-  smi: 'Sami',
-  smj: 'Lule Sami',
-  smn: 'Inari Sami',
-  smo: 'Samoan',
-  sms: 'Skolt Sami',
-  sna: 'Shona',
-  snd: 'Sindhi',
-  snh: 'Sinhalese',  #discontinued
-  snk: 'Soninke',
-  sog: 'Sogdian',
-  som: 'Somali',
-  son: 'Songhai',
-  sot: 'Sotho',
-  spa: 'Spanish',
-  srd: 'Sardinian',
-  srn: 'Sranan',
-  srp: 'Serbian',
-  srr: 'Serer',
-  ssa: 'Nilo-Saharan (Other)',
-  sso: 'Sotho',  #discontinued
-  ssw: 'Swazi',
-  suk: 'Sukuma',
-  sun: 'Sundanese',
-  sus: 'Susu',
-  sux: 'Sumerian',
-  swa: 'Swahili',
-  swe: 'Swedish',
-  swz: 'Swazi',  #discontinued
-  syc: 'Syriac',
-  syr: 'Syriac, Modern',
-  tag: 'Tagalog',  #discontinued
-  tah: 'Tahitian',
-  tai: 'Tai (Other)',
-  taj: 'Tajik',  #discontinued
-  tam: 'Tamil',
-  tar: 'Tatar',  #discontinued
-  tat: 'Tatar',
-  tel: 'Telugu',
-  tem: 'Temne',
-  ter: 'Terena',
-  tet: 'Tetum',
-  tgk: 'Tajik',
-  tgl: 'Tagalog',
-  tha: 'Thai',
-  tib: 'Tibetan',
-  tig: 'Tigré',
-  tir: 'Tigrinya',
-  tiv: 'Tiv',
-  tkl: 'Tokelauan',
-  tlh: 'Klingon (Artificial language)',
-  tli: 'Tlingit',
-  tmh: 'Tamashek',
-  tog: 'Tonga (Nyasa)',
-  ton: 'Tongan',
-  tpi: 'Tok Pisin',
-  tru: 'Truk',  #discontinued
-  tsi: 'Tsimshian',
-  tsn: 'Tswana',
-  tso: 'Tsonga',
-  tsw: 'Tswana',  #discontinued
-  tuk: 'Turkmen',
-  tum: 'Tumbuka',
-  tup: 'Tupi languages',
-  tur: 'Turkish',
-  tut: 'Altaic (Other)',
-  tvl: 'Tuvaluan',
-  twi: 'Twi',
-  tyv: 'Tuvinian',
-  udm: 'Udmurt',
-  uga: 'Ugaritic',
-  uig: 'Uighur',
-  ukr: 'Ukrainian',
-  umb: 'Umbundu',
-  und: 'Undetermined',
-  urd: 'Urdu',
-  uzb: 'Uzbek',
-  vai: 'Vai',
-  ven: 'Venda',
-  vie: 'Vietnamese',
-  vol: 'Volapük',
-  vot: 'Votic',
-  wak: 'Wakashan languages',
-  wal: 'Wolayta',
-  war: 'Waray',
-  was: 'Washoe',
-  wel: 'Welsh',
-  wen: 'Sorbian (Other)',
-  wln: 'Walloon',
-  wol: 'Wolof',
-  xal: 'Oirat',
-  xho: 'Xhosa',
-  yao: 'Yao (Africa)',
-  yap: 'Yapese',
-  yid: 'Yiddish',
-  yor: 'Yoruba',
-  ypk: 'Yupik languages',
-  zap: 'Zapotec',
-  zbl: 'Blissymbolics',
-  zen: 'Zenaga',
-  zha: 'Zhuang',
-  znd: 'Zande languages',
-  zul: 'Zulu',
-  zun: 'Zuni',
-  zxx: 'No linguistic content',
-  zza: 'Zaza',
-}

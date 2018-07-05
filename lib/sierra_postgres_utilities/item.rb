@@ -2,17 +2,14 @@
 require_relative 'record'
 
 class SierraItem < SierraRecord
-  attr_reader :inum, :given_inum, :record_id, :deleted, :suppressed, :warnings,
-              :icode2, :itype_code, :location_code, :status_code, :copy_num,
-              :message_code
-
+  attr_reader :inum, :given_inum, :suppressed
 
   @@rtype = 'i'
   @@sql_name = 'item'
 
   # These map codes to descriptions/text. They are read live from the
   # postgres DB are populated when needed.
-  @@itype_map = nil
+  @@itype_code_map = nil
   @@location_code_map = nil
   @@status_code_map = nil
 
@@ -91,6 +88,14 @@ class SierraItem < SierraRecord
 
   # array of call number fields, nil when none exist
   # subfield delimiters are stripped unless keep_delimiters: true
+  # e.g.
+  # item.callnos                        => ["PR6056.A82 S6"]
+  # item.callnos(keep_delimiters: true) => ["|aPR6056.A82 S6"]
+  # item.callnos(value_only: false)     => [{
+  #   :id=>"8978779", :record_id=>"450974227090", :varfield_type_code=>"c",
+  #   :marc_tag=>"090", :marc_ind1=>" ", :marc_ind2=>" ", :occ_num=>"0",
+  #   :field_content=>"|aPR6056.A82 S6"
+  # }]
   def callnos(value_only: true, keep_delimiters: false)
     varfield_type = 'c'
     data = self.vf_helper(varfield_type: varfield_type, value_only: value_only)
@@ -143,11 +148,11 @@ class SierraItem < SierraRecord
       from sierra_view.checkout c
       where c.item_record_id = #{@record_id}
     SQL
-    self.conn.make_query(query)
+    SierraDB.make_query(query)
     # items not checked out have no checkout data
     # set a flag so we don't recheck
     @queried_checkout_data = true
-    @checkout_data = self.conn.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
+    @checkout_data = SierraDB.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
   end
 
   def due_date(strformat: '%Y%m%d')
@@ -158,7 +163,7 @@ class SierraItem < SierraRecord
 
   def itype_description
     self.class.load_itype_descs unless @@itype_code_map
-    @@itype_map[self.itype_code]
+    @@itype_code_map[self.itype_code]
   end
 
   def location_description
@@ -172,27 +177,30 @@ class SierraItem < SierraRecord
   end
 
   def self.load_itype_descs
-    self.conn.make_query(
+    SierraDB.make_query(
       'select code, name
-      from sierra_view.itype_property_myuser'
+      from sierra_view.itype_property_myuser
+      order by code ASC'
     )
-    @@itype_map = self.conn.results.values.to_h
+    @@itype_code_map = SierraDB.results.values.to_h
   end
   
   def self.load_location_descs
-    self.conn.make_query(
+    SierraDB.make_query(
       'select code, name
-      from sierra_view.location_myuser'
+      from sierra_view.location_myuser
+      order by code ASC'
     )
-    @@location_code_map = self.conn.results.values.to_h
+    @@location_code_map = SierraDB.results.values.to_h
   end
 
   def self.load_status_descs
-    self.conn.make_query(
+    SierraDB.make_query(
       'select code, name
-      from sierra_view.item_status_property_myuser'
+      from sierra_view.item_status_property_myuser
+      order by code ASC'
     )
-    @@status_code_map = self.conn.results.values.to_h
+    @@status_code_map = SierraDB.results.values.to_h
   end
 
 

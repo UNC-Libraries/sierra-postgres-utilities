@@ -111,8 +111,8 @@ class SierraRecord
     }
   end
 
-  def varfields_sql
-    @varfields_sql ||= self.read_varfields
+  def varfield_data
+    @varfield_data ||= self.read_varfields
   end
 
   # { varfield_type_code: array of field_content(s),... }
@@ -123,7 +123,7 @@ class SierraRecord
 
   def vf
     vf = {}
-    nonmarc = self.varfields_sql.
+    nonmarc = self.varfield_data.
                    sort_by { |field|
       [field[:varfield_type_code], field[:occ_num], field[:id]]
     }
@@ -144,10 +144,10 @@ class SierraRecord
   
   def marc_vf
     vf = {}
-    marc = self.varfields_sql.
+    marc = self.varfield_data.
                    select { |field| field[:marc_tag] }.
                    sort_by { |field|
-      [field[:marc_tag], field[:occ_num], field[:id]]
+      [field[:marc_tag], field[:varfield_type_code], field[:occ_num], field[:id]]
     }
     marc.each do |field|
       unless vf.include?(field[:marc_tag])

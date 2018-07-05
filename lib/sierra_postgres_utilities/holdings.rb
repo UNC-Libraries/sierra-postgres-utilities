@@ -2,7 +2,7 @@
 require_relative 'record'
 
 class SierraHoldings < SierraRecord
-  attr_reader :cnum, :given_cnum, :record_id, :deleted, :suppressed, :warnings
+  attr_reader :cnum, :given_cnum, :suppressed
 
   @@rtype = 'c'
   @@sql_name =  'holding'
