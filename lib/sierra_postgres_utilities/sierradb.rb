@@ -17,27 +17,16 @@ module SierraDB
   end
 
   def self.connect_as(cred: )
-    @conn.close if @conn
+    @conn.close if @conn && !@conn.finished?
     @conn = self.make_connection(cred: cred)
   end
 
-  def self.make_connection(cred:)
-    @@secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
-    @@prod_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_prod.secret'))
-    @@test_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_test.secret'))
-    @@emails = YAML.load_file(File.join(@@secrets_dir, '/email.secret'))
-    if cred == 'prod'
-      @@cred = @@prod_cred
-    elsif cred == 'test'
-      @@cred = @@test_cred
-    else
-      @@cred = cred
-    end
-    PG::Connection.new(@@cred)
+  def self.close
+    @conn.close
   end
 
   def self.headers
-    @results.fields
+    @results&.fields
   end
 
   def self.results
@@ -48,15 +37,11 @@ module SierraDB
     @query
   end
 
-  def self.data
-    @results.entries
-  end
-
   def self.make_query(query)
-    return run_query(query)
+    run_query(query)
   end  
 
-  def self.write_results(outfile, results: @results, headers: @headers, include_headers: true, format: 'tsv')
+  def self.write_results(outfile, results: self.results, headers: self.headers, include_headers: true, format: 'tsv')
     # needs relative path for xlsx output
     puts 'writing results'
     unless include_headers
@@ -80,9 +65,33 @@ module SierraDB
 
   def self.yield_email(index='')
     unless index.empty?
-      return @emails[index]
+      return @@emails[index]
     end
     return @@emails['default_email']
+  end
+
+  # Connects to SierraDB using specified credentials
+  def self.make_connection(cred:)
+    @@secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
+    @@prod_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_prod.secret'))
+    @@test_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_test.secret'))
+    @@emails = YAML.load_file(File.join(@@secrets_dir, '/email.secret'))
+    if cred == 'prod'
+      @@cred = @@prod_cred
+    elsif cred == 'test'
+      @@cred = @@test_cred
+    else
+      begin
+        @@cred = YAML.load_file(File.join(@@secrets_dir, cred))
+      rescue Errno::ENOENT
+        begin
+          @@cred = YAML.load_file(cred)
+        rescue Errno::ENOENT
+          @@cred = cred
+        end
+      end
+    end
+    PG::Connection.new(@@cred)
   end
 
   def self.write_tsv(outfile, results, headers)
@@ -100,7 +109,7 @@ module SierraDB
     end
   end
 
-  def self.rite_xlsx(outfile, results, headers)
+  def self.write_xlsx(outfile, results, headers)
     unless defined?(WIN32OLE)
       raise 'WIN32OLE not loaded; cannot write to xlsx file'
     end
@@ -149,9 +158,11 @@ module SierraDB
   #   query = "SELECT * FROM table WHERE a = 2 and b like 'thing'"
   # or as a file containing such a string
   #
+  
   def self.run_query(query)
     @query = File.file?(query) ? File.read(query) : query
     #puts 'running query'
     @results = self.conn.exec(@query)
   end
+  private_class_method :run_query
 end
