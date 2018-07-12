@@ -1,30 +1,12 @@
 # coding: utf-8
+
 require_relative 'record'
 require 'marc'
 require_relative '../../ext/marc/record'
 require_relative '../../ext/marc/datafield'
 
-
 class SierraBib < SierraRecord
-  attr_reader :bnum, :m006, :m007s, :m008, :marc, :oclcnum, :blvl, :given_bnum, :multiple_LDRs_flag
-
-  # use self.rec_data
-  # @rec_data=
-  # {"id"=>"420907889860",
-  #  "record_id"=>"420907889860",
-  #  "language_code"=>"eng",
-  #  "bcode1"=>"m",
-  #  "bcode2"=>"a",
-  #  "bcode3"=>"-",
-  #  "country_code"=>"enk",
-  #  "index_change_count"=>"11",
-  #  "is_on_course_reserve"=>"f",
-  #  "is_right_result_exact"=>"f",
-  #  "allocation_rule_code"=>"0",
-  #  "skip_num"=>"4",
-  #  "cataloging_date_gmt"=>"2004-10-01 00:00:00-04",
-  #  "marc_type_code"=>" "}
-
+  attr_reader :bnum, :given_bnum, :multiple_LDRs_flag
   attr_accessor :stub, :items
 
   @rtype = 'b'
@@ -46,19 +28,19 @@ class SierraBib < SierraRecord
     self.class.sql_name
   end
 
+# Must be given a bnum that does not include an actual check digit.
+#   Good: 'b1094852a', 'b1094852'
+#   Bad:  'b10948521'
+# If all goes well, creates a SierraBib object like so:
+# <SierraBib:0x0000000475d498
+#   @given_rnum="b1094852a",
+#   @warnings=[],
+#   @rnum="b1094852a",
+#   @rec_metadata={:id=>"420907889860", ... }
+#   @given_bnum="b1094852a",
+#   @bnum="b1094852a"
+# >
   def initialize(bnum)
-=begin
-Must be given a bnum that does not include an actual check digit.
-  Good: 'b1094852a', 'b1094852'
-  Bad:  'b10948521'
-If all goes well, creates a SierraBib object like so: 
-<SierraBib:0x0000000001fd9728
- @bnum="b1094852a",
- @deleted=false,
- @given_bnum="b1094852",
- @record_id="420907889860",
- @warnings=[]>
-=end    
     super(rnum: bnum, rtype: rtype)
     @given_bnum = @given_rnum
     @bnum = @rnum
@@ -76,16 +58,15 @@ If all goes well, creates a SierraBib object like so:
     rnum_with_check
   end
 
-
   # not the same value as iii's is_suppressed SQL field which
   # does not consider 'c' a suppression bcode3
   def suppressed?
-    %w(d n c).include?(self.rec_data[:bcode3])
+    %w[d n c].include?(rec_data[:bcode3])
   end
 
   # cat_date(strformat: nil) yields DateTime obj
   def cat_date(strformat: '%Y%m%d')
-    raw = strip_date(date: self.rec_data[:cataloging_date_gmt])
+    raw = strip_date(date: rec_data[:cataloging_date_gmt])
     format_date(date: raw, strformat: strformat)
   end
 
@@ -113,10 +94,10 @@ If all goes well, creates a SierraBib object like so:
       end
     end
     tags = makedict
-    tag_phrase = tags.map { |x| "'" + x[0].to_s + "'"}.join(', ')
+    tag_phrase = tags.map { |x| "'#{x[0].to_s}'" }.join(', ')
     query = <<-SQL
     select * from sierra_view.varfield v
-    where v.record_id = #{@record_id}
+    where v.record_id = #{record_id}
     and v.marc_tag in (#{tag_phrase})
     order by marc_tag, occ_num
     SQL
@@ -127,68 +108,69 @@ If all goes well, creates a SierraBib object like so:
       varfield['extracted_content'] = []
       subfields = tags[varfield['marc_tag']]
       subfields.each do |subfield|
-        varfield['extracted_content'] << extract_subfields(varfield['field_content'], subfield, trim_punct: true)
+        varfield['extracted_content'] << extract_subfields(
+          varfield['field_content'], subfield, trim_punct: true
+        )
       end
     end
-    return varfields
+    varfields
   end
 
   # returns an array of the field_contents of the requested
   # tags/subfields
   def compile_varfields(tags)
     varfields = get_varfields(tags)
-    return nil if !varfields
-    compiled = varfields.map { |x| x['extracted_content']}
+    return nil unless varfields
+    compiled = varfields.map { |x| x['extracted_content'] }
     compiled.flatten!
-    compiled.delete("")
-    return compiled
+    compiled.delete('')
+    compiled
   end
 
   def compile_titles
-    tags = ['130abnp', '210abnp', '240abnp', '242abnp',
-            '245abnp', '246abnp', '247abnp', '730abnp']
-    titles = compile_varfields(@record_id, tags)
+    tags = %w[130abnp 210abnp 240abnp 242abnp 245abnp 246abnp 247abnp 730abnp]
+    compile_varfields(record_id, tags)
   end
-  
+
   def compile_authors
-    tags = ['100ac', '110a', '111a', '511a', '700ac',
-            '710a', '711a', '245c']
-    authors = compile_varfields(@record_id, tags)
+    tags = %w[100ac 110a 111a 511a 700ac 710a 711a 245c]
+    compile_varfields(record_id, tags)
   end
 
   def subfield_from_field_content(subfield_tag, field_content)
-    #returns first of a given subfield from varfield field_content string
-    subfields = field_content.split("|")
+    # returns first of a given subfield from varfield field_content string
+    subfields = field_content.split('|')
     sf_hash = {}
     subfields.each do |sf|
       sf_hash[sf[0]] = sf[1..-1] unless sf_hash.include?(sf[0])
     end
-    return sf_hash[subfield_tag]
+    sf_hash[subfield_tag]
   end
 
   def extract_subfields(whole_field, desired_subfields, trim_punct: false)
     field = whole_field.dup
-    desired_subfields = '' if !desired_subfields
-    desired_subfields = desired_subfields.join() if desired_subfields.is_a?(Array)
-    # we don't assume anything before a valid subfield delimiter is |a, so remove
-    # all from beginning to first pipe
+    desired_subfields ||= ''
+    desired_subfields = desired_subfields.join if desired_subfields.is_a?(Array)
+    # we don't assume anything before a valid subfield delimiter is |a, so
+    # remove all from beginning to first pipe
     field.gsub!(/^[^|]*/, '')
     field.gsub!(/\|[^#{desired_subfields}][^|]*/, '') unless desired_subfields.empty?
     extraction = field.gsub(/\|./, ' ').lstrip
     extraction.sub!(/[.,;: \/]*$/, '') if trim_punct
-    return extraction
+    extraction
   end
 
   # field_content: "|aIDEBK|beng|erda|cIDEBK|dCOO"
-  # returns: [["a", "IDEBK"], ["b", "eng"], ["e", "rda"], ["c", "IDEBK"], ["d", "COO"]]
+  # returns:
+  #   [["a", "IDEBK"], ["b", "eng"], ["e", "rda"], ["c", "IDEBK"], ["d", "COO"]]
   def subfield_arry(field_content)
-    #TODO: assuming |a at beginning if no subfield present is correct here?
+    # TODO: assuming |a at beginning if no subfield present is correct here?
     # At least for trln_discovery extract, we do assume an implicit |a when the
-    # data does not begin with another subfield and need to make that an explicit
-    # |a
+    # data does not begin with another subfield and need to make that an
+    # explicit |a
     field_content = field_content.insert(0, '|a') if field_content[0] != '|'
     arry = field_content.split('|')
-    return arry[1..-1].map { |x| [x[0], x[1..-1]] }
+    arry[1..-1].map { |x| [x[0], x[1..-1]] }
   end
 
   def get_marc_varfields
@@ -200,7 +182,6 @@ If all goes well, creates a SierraBib object like so:
     @control_fields ||= read_control_fields
   end
 
-  
   # Returns all control fields as array of sql result hashes
   # Gathers 006/007/008 stored in control_field and any 00X in varfield)
   # Fields in control_field are given proper marc_tag and field_content entries
@@ -210,27 +191,27 @@ If all goes well, creates a SierraBib object like so:
   #  {:id=>"90120881", ... :control_num=>"8", :p00=>"7", ...:marc_tag=>"008",
   #     :field_content=>"740314c19719999oncqr4p  s   f0   a0eng d"}]
   def read_control_fields
-    var_control = self.marc_varfields.
-                       select { |tag, fields| tag =~ /^00/ }.
-                       values.flatten
+    return {} unless record_id
+    var_control = marc_varfields.
+                  select { |tag, _| tag =~ /^00/ }.
+                  values.flatten
     query = <<-SQL
       select *
       from sierra_view.control_field cf
-      where control_num in ('6', '7', '8') and record_id = #{@record_id}
+      where control_num in ('6', '7', '8') and record_id = #{record_id}
       order by cf.control_num, cf.varfield_type_code, cf.occ_num, cf.id ASC
     SQL
-    self.conn.make_query(query)
-    self.conn.results.entries.each do |entry|
-      entry = entry.collect { |k,v| [k.to_sym, v] }.to_h
+    conn.make_query(query)
+    conn.results.entries.each do |entry|
+      entry = entry.collect { |k, v| [k.to_sym, v] }.to_h
       control_num = entry[:control_num]
-      if %w[6 7 8].include?(control_num)
-        marc_tag = "00#{control_num}"
-        value = entry.values[4..43].map{ |x| x.to_s }.join
-        value.strip! unless control_num == '8'
-        entry[:marc_tag] = marc_tag
-        entry[:field_content] = value
-        var_control << entry
-      end
+      next unless %w[6 7 8].include?(control_num)
+      marc_tag = "00#{control_num}"
+      value = entry.values[4..43].map(&:to_s).join
+      value.strip! unless control_num == '8'
+      entry[:marc_tag] = marc_tag
+      entry[:field_content] = value
+      var_control << entry
     end
     var_control
   end
@@ -260,8 +241,9 @@ If all goes well, creates a SierraBib object like so:
   end
 
   def read_ldr
+    return {} unless record_id
     # ldr building logic from: https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
-    query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{@record_id}"
+    query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{record_id}"
     conn.make_query(query)
     @multiple_LDRs_flag = true if conn.results.entries.length >= 2
     if conn.results.entries.empty?
@@ -269,7 +251,7 @@ If all goes well, creates a SierraBib object like so:
       @ldr_data = {}
       return @ldr_data
     end
-    myldr = conn.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
+    myldr = conn.results.entries.first.collect { |k, v| [k.to_sym, v] }.to_h
     @ldr = ldr_data_to_string(myldr)
     @ldr_data = myldr
   end
@@ -311,14 +293,15 @@ If all goes well, creates a SierraBib object like so:
 
   # returns array of strings
   def get_bib_locs
+    return {} unless record_id
     query = <<-SQL
       select STRING_AGG(Trim(trailing FROM location_code), ';;;' order by id) AS bib_locs
       from   sierra_view.bib_record_location
-      where location_code != 'multi' and bib_record_id = #{@record_id}
+      where location_code != 'multi' and bib_record_id = #{record_id}
     SQL
     conn.make_query(query)
     return nil unless conn.results.entries
-    return conn.results.entries.first['bib_locs'].split(';;;')
+    conn.results.entries.first['bib_locs'].split(';;;')
   end
 
   def mrk
@@ -336,8 +319,9 @@ If all goes well, creates a SierraBib object like so:
     end
 
     # add data fields stored in varfield
-    var_varfield = self.marc_varfields.
-      reject { |tag, fields| tag =~ /^00/ }.
+    var_varfield =
+      marc_varfields.
+      reject { |tag, _| tag =~ /^00/ }.
       values.flatten
     var_varfield.each do |vf|
       mh['fields'] << [vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
@@ -363,20 +347,6 @@ If all goes well, creates a SierraBib object like so:
     # We could also set the oclcnum manually and have that
     #   given value returned
     @oclcnum ||= marc.oclcnum
-  end  
-
-  def fake_leader
-    return '=LDR  00378nam  2200061   45e0'
-  end
-
-  # returns 907 with sierra-style (pipe) sf delimiter
-  # marcedit takes dollar sign delimiters
-  def proper_907
-    return "=907  \\\\|a.#{@bnum}"
-  end
-
-  def stub_load_note
-    return "=944  \\\\$aBatch load history: 999 Something records loaded 20180000, xxx."
   end
 
   def stub
@@ -384,27 +354,29 @@ If all goes well, creates a SierraBib object like so:
     @stub = MARC::Record.new
     @stub << MARC::DataField.new('907', ' ', ' ', ['a', ".#{@bnum}"])
     load_note = 'Batch load history: 999 Something records loaded 20180000, xxx.'
-    @stub << MARC::DataField.new('944', ' ', ' ', ['a', "#{load_note}"])
-    return @stub
+    @stub << MARC::DataField.new('944', ' ', ' ', ['a', load_note])
+    @stub
   end
 
   # sets and returns @items as array of attached irecs as SierraItem objects
   def items
-    @items ||= self.get_attached(rtype: 'i')
+    @items ||= get_attached(rtype: 'i')
   end
 
   # sets and returns @orders as array of attached irecs as SierraOrder objects
   def orders
-    @orders ||= self.get_attached(rtype: 'o')
+    @orders ||= get_attached(rtype: 'o')
   end
 
-  # sets and returns @holdings as array of attached irecs as SierraHoldings objects
+  # sets and returns @holdings as array of attached irecs as SierraHoldings
+  #   objects
   def holdings
-    @holdings ||= self.get_attached(rtype: 'c')
+    @holdings ||= get_attached(rtype: 'c')
   end
 
   # returns array of attached [rtype] records as Sierra[Type] objects
   def get_attached(rtype:)
+    return {} unless record_id
     case rtype
     when 'i'
       sql_name = 'item'
@@ -421,49 +393,46 @@ If all goes well, creates a SierraBib object like so:
       from sierra_view.bib_record b
       inner join sierra_view.bib_record_#{sql_name}_record_link link on link.bib_record_id = b.id
       inner join sierra_view.record_metadata rm on rm.id = link.#{sql_name}_record_id
-      where b.id = #{@record_id}
+      where b.id = #{record_id}
       order by link.#{sql_name}s_display_order ASC
     SQL
-    self.conn.make_query(attached_query)
-    attached = self.conn.results.values.flatten.map { |rnum| klass.new(rnum) }
+    conn.make_query(attached_query)
+    attached = conn.results.values.flatten.map { |rnum| klass.new(rnum) }
     attached = nil if attached.empty?
     attached
   end
 
   def proper_506s(strict: true, yield_errors: false)
-    need_x = self.collections.length > 1
-    p506s = self.collections.map { |c| c.m506(include_x: need_x) }.uniq
-    errors = self.collections.map { |c| c.m506_error }.uniq.compact
-    if strict && !errors.empty?
-      if yield_errors
-        return errors
-      else
-        nil
-      end
-    else
+    need_x = collections.length > 1
+    p506s = collections.map { |c| c.m506(include_x: need_x) }.uniq
+    return p506s unless strict
+    errors = collections.map(&:m506_error).uniq.compact
+    if errors.empty?
       p506s
+    elsif yield_errors
+      errors
     end
   end
 
   def extra_506s(whitelisted: [])
-    extra = self.proper_506s.sort - self.marc.fields('506')
+    extra = proper_506s.sort - marc.fields('506')
     extra - whitelisted
   end
 
   def lacking_506s
-    self.marc.fields('506') - self.proper_506s.sort
+    marc.fields('506') - proper_506s.sort
   end
 
   def collections
-    @collections ||= self.get_collections
+    @collections ||= get_collections
   end
 
   def get_collections
     require_relative 'ebook_collections'
-    my_colls = self.marc.fields('773')
-    my_colls.reject! {
-      |f| f.value =~ /^OCLC WorldShare Collection Manager managed collection/
-    }
+    my_colls = marc.fields('773')
+    my_colls.reject! do |f|
+      f.value =~ /^OCLC WorldShare Collection Manager managed collection/
+    end
     my_colls.map! { |m773| EbookCollections.colls[m773['t']] }
     my_colls.delete(nil)
     @collections = my_colls

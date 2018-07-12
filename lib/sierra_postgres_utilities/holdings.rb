@@ -10,7 +10,7 @@ class SierraHoldings < SierraRecord
 
 
   def initialize(cnum)
-    super(rnum: cnum, rtype: self.rtype)
+    super(rnum: cnum, rtype: rtype)
     @cnum = @rnum
   end
 
@@ -23,7 +23,7 @@ class SierraHoldings < SierraRecord
   end
 
   def suppressed?
-    self.rec_data[:scode2] == 'n'
+    rec_data[:scode2] == 'n'
   end
 
 end

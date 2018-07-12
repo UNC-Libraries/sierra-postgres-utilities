@@ -1,7 +1,7 @@
 require 'marc'
 require_relative '../../../ext/marc/record'
 
-def stub_builder(_001, _003, _035s)
+def ocn_stub_builder(_001, _003, _035s)
   rec = MARC::Record.new
   rec << MARC::ControlField.new('001', _001) if _001
   rec << MARC::ControlField.new('003', _003) if _003
@@ -9,80 +9,86 @@ def stub_builder(_001, _003, _035s)
   rec
 end
 
+def new_rec_with_fields(*fields)
+  rec = MARC::Record.new
+  fields.each { |f| rec << f }
+  rec
+end
+
 RSpec.describe MARC::Record do
   describe 'get_oclcnum' do
     it 'returns oclc_number when 001 is digits only and there is no 003' do
-      r = stub_builder('123', '', [])
+      r = ocn_stub_builder('123', '', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'strips 001 value before determining 001 composition' do
-      r = stub_builder('698212827  ', '', [])
+      r = ocn_stub_builder('698212827  ', '', [])
       expect(r.get_oclcnum).to eq('698212827')
     end
 
     it 'sets oclc_number when 001 is digits only and 003 = OCoLC' do
-      r = stub_builder('123', 'OCoLC', [])
+      r = ocn_stub_builder('123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'does NOT set oclc_number when 001 is digits only and 003 = ItFiC' do
-      r = stub_builder('123', 'ItFiC', [])
+      r = ocn_stub_builder('123', 'ItFiC', [])
       expect(r.get_oclcnum).to eq(nil)
     end
 
     it 'sets oclc_number from 035 with (OCoLC) when not set from 001' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)567'])
+      r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)567'])
       expect(r.get_oclcnum).to eq('567')
     end
 
     it 'does NOT set oclc_number when 001 is digits only and 003 = DLC' do
-      r = stub_builder('123', 'DLC', [])
+      r = ocn_stub_builder('123', 'DLC', [])
       expect(r.get_oclcnum).to eq(nil)
     end
 
 #    it 'strips leading zero(s) from oclc_number set from 035' do
-#      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+#      r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
 #      expect(r.get_oclcnum).to eq('567')
 #    end
 
     it 'sets oclc_number when 001 is digits only and 003 = NhCcYBP' do
-      r = stub_builder('123', 'NhCcYBP', [])
+      r = ocn_stub_builder('123', 'NhCcYBP', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'sets oclc_number when 001 has prefix tmp and 003 = OCoLC' do
-      r = stub_builder('tmp123', 'OCoLC', [])
+      r = ocn_stub_builder('tmp123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'sets oclc_number when 001 is digits with alphanum suffix' do
-      r = stub_builder('123wcmSPR99', '', [])
+      r = ocn_stub_builder('123wcmSPR99', '', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'does NOT set oclc_number when 001 has prefix M-ESTCN and 003 = OCoLC with prefixed 035' do
-      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987'])
+      r = ocn_stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987'])
       expect(r.get_oclcnum).to eq(nil)
     end
 
 #    it 'sets oclc_number from 035 when it starts with ocm' do
-#      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
+#      r = ocn_stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
 #      expect(r.get_oclcnum).to eq('444')
 #    end
 
     it 'does NOT set oclc_number when 001 has prefix moml and 003 = OCoLC' do
-      r = stub_builder('moml123', 'OCoLC', [])
+      r = ocn_stub_builder('moml123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq(nil)
     end
 
     it 'sets oclc_number when 001 has hsl prefix and 003 = OCoLC' do
-      r = stub_builder('hsl123', 'OCoLC', [])
+      r = ocn_stub_builder('hsl123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq('123')
     end
 
     it 'does NOT set oclc_number when 001 has WHO prefix and 003 = OCoLC' do
-      r = stub_builder('WHO123', 'OCoLC', [])
+      r = ocn_stub_builder('WHO123', 'OCoLC', [])
       expect(r.get_oclcnum).to eq(nil)
     end
   end
@@ -90,38 +96,38 @@ RSpec.describe MARC::Record do
   describe 'get_035oclcnums' do
 
     it 'returns oclc_number even when 001 is digits only and 003 = OCoLC' do
-      r = stub_builder('123', 'OCoLC', ['(OCoLC)000000567'])
+      r = ocn_stub_builder('123', 'OCoLC', ['(OCoLC)000000567'])
       expect(r.get_035oclcnums).to eq(['567'])
     end
 
     it 'strips leading zero(s) from oclc_numbers' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+      r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
       expect(r.get_035oclcnums).to eq(['567'])
     end
 
     it 'includes oclc_number from 035 when it starts with ocm' do
-      r = stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
+      r = ocn_stub_builder('M-ESTCN123', 'OCoLC', ['(OCoLC)M-ESTCN987', '(OCoLC)ocm444'])
       expect(r.get_035oclcnums).to eq(['444'])
     end
 
     it 'does not include oclc_number when 035 has prefix M-ESTCN' do
-      r = stub_builder('', '', ['(OCoLC)M-ESTCN987'])
+      r = ocn_stub_builder('', '', ['(OCoLC)M-ESTCN987'])
       expect(r.get_035oclcnums).to be_nil
     end
 
     it 'is nil if no OCLC 035s' do
-      r = stub_builder('', '', [])
+      r = ocn_stub_builder('', '', [])
       expect(r.get_035oclcnums).to be_nil
     end
 
     it 'happily returns multiple 035s' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
+      r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)000000567'])
       r << MARC::DataField.new('035', ' ', ' ', ['a', '(OCoLC)000000123'])
       expect(r.get_035oclcnums).to eq(['567', '123'])
     end
 
     it 'does not return an 035 oclcnum of ""' do
-      r = stub_builder('123', 'ItFiC', ['(OCoLC)'])
+      r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)'])
       expect(r.get_035oclcnums).to be_nil
     end
   
@@ -129,13 +135,67 @@ RSpec.describe MARC::Record do
   
   describe 'oclcnum' do
     it 'sets MARC::Record oclcnum instance attribute when OCLC Number present' do
-      r = stub_builder('123', '', [])
+      r = ocn_stub_builder('123', '', [])
       expect(r.oclcnum).to eq('123')
     end
 
     it 'sets MARC::Record oclcnum instance attribute to nil if there is no OCLC number' do
-      r = stub_builder('WHO123', 'OCoLC', [])
+      r = ocn_stub_builder('WHO123', 'OCoLC', [])
       expect(r.oclcnum).to eq(nil)
+    end
+  end
+
+
+  describe '.language_from_008' do
+    let(:eng008) {
+      MARC::ControlField.new('008', '0.........1.........2.........3....eng...')
+    }
+    let(:invalid008) {
+      MARC::ControlField.new('008', '0.........1.........2.........3....xxx...')
+    }
+    let(:discontinued008) {
+      MARC::ControlField.new('008', '0.........1.........2.........3....cam...')
+    }
+    let(:rec_eng) { new_rec_with_fields(eng008) }
+    let(:rec_invalid) { new_rec_with_fields(invalid008) }
+    let(:rec_discontinued) { new_rec_with_fields(discontinued008) }
+    let(:rec_no008) { new_rec_with_fields() }
+
+    context 'when record has current, valid language code' do
+      it 'returns language code, language name pair' do
+        expect(rec_eng.language_from_008).to eq(['eng', 'English'])
+      end
+    end
+
+    context 'when record has invalid language code' do
+      it 'returns language code, nil pair' do
+        expect(rec_invalid.language_from_008).to eq(['xxx', nil])
+      end
+    end
+
+    context 'when record has discontinued language code' do
+
+      context 'by default (or if forbid_discontinued is explicitly false)' do
+        it 'returns language code, language name pair' do
+          expect(rec_discontinued.language_from_008).to eq(['cam', 'Khmer'])
+        end
+      end
+
+      context 'and argument forbid_discontinued is true' do
+        it 'returns language code, nil pair' do
+          expect(
+            rec_discontinued.language_from_008(forbid_discontinued: true)
+          ).to eq(['cam', nil])
+        end
+      end
+
+
+    end
+
+    context 'when record has no 008 / no 008/35-37' do
+      it 'returns nil' do
+        expect(rec_no008.language_from_008).to be_nil
+      end
     end
   end
 

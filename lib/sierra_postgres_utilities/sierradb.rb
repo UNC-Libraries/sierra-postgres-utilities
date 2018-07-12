@@ -16,7 +16,7 @@ module SierraDB
     @conn ||= self.make_connection(cred: cred)
   end
 
-  def self.connect_as(cred: )
+  def self.connect_as(cred:)
     @conn.close if @conn && !@conn.finished?
     @conn = self.make_connection(cred: cred)
   end
@@ -39,22 +39,19 @@ module SierraDB
 
   def self.make_query(query)
     run_query(query)
-  end  
+  end
 
-  def self.write_results(outfile, results: self.results, headers: self.headers, include_headers: true, format: 'tsv')
+  def self.write_results(outfile, results: self.results, headers: self.headers,
+                         include_headers: true, format: 'tsv')
     # needs relative path for xlsx output
     puts 'writing results'
-    unless include_headers
-      headers = ''
-    end
+    headers = '' unless include_headers
     if format == 'tsv'
       write_tsv(outfile, results, headers)
     elsif format == 'csv'
       write_csv(outfile, results, headers)
     elsif format == 'xlsx'
-      if headers == ''
-        raise ArgumentError("writing to xlsx requires headers")
-      end
+      raise ArgumentError('writing to xlsx requires headers') if headers == ''
       write_xlsx(outfile, results, headers)
     end
   end
@@ -63,16 +60,14 @@ module SierraDB
     send_mail(outfile, mail_details, remove_file: remove_file)
   end
 
-  def self.yield_email(index='')
-    unless index.empty?
-      return @@emails[index]
-    end
-    return @@emails['default_email']
+  def self.yield_email(index = nil)
+    return @@emails[index] if index
+    @@emails['default_email']
   end
 
   # Connects to SierraDB using specified credentials
   def self.make_connection(cred:)
-    @@secrets_dir = File.dirname(File.expand_path('../..', __FILE__)).to_s
+    @@secrets_dir = File.dirname(File.expand_path('..', __dir__)).to_s
     @@prod_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_prod.secret'))
     @@test_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_test.secret'))
     @@emails = YAML.load_file(File.join(@@secrets_dir, '/email.secret'))
@@ -98,11 +93,9 @@ module SierraDB
     write_csv(outfile, results, headers, col_sep: "\t")
   end
 
-  def self.write_csv(outfile, results, headers, col_sep: ",")
+  def self.write_csv(outfile, results, headers, col_sep: ',')
     CSV.open(outfile, 'wb', col_sep: col_sep) do |csv|
-      if !headers.empty?
-        csv << headers
-      end
+      csv << headers unless headers.empty?
       results.each do |record|
         csv << record.values
       end
@@ -118,7 +111,7 @@ module SierraDB
     workbook = excel.Workbooks.Add()
     worksheet = workbook.Worksheets(1)
     # find end column letter
-    end_col = ('A'..'ZZ').to_a[(headers.length-1)]
+    end_col = ('A'..'ZZ').to_a[(headers.length - 1)]
     # write headers
     worksheet.Range("A1:#{end_col}1").value = headers
     # write data
@@ -128,40 +121,32 @@ module SierraDB
       worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
     end
     # save and close excel
-    outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, "\\\\")
-    if File.exist?(outfilepath)
-      File.delete(outfilepath)
-    end
+    outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, '\\\\')
+    File.delete(outfilepath) if File.exist?(outfilepath)
     workbook.saveas(outfilepath)
-    excel.quit()
+    excel.quit
   end
 
   def self.send_mail(outfile, mail_details, remove_file: false)
     Mail.defaults do
-      delivery_method :smtp, address: "relay.unc.edu", port: 25
+      delivery_method :smtp, address: 'relay.unc.edu', port: 25
     end
     Mail.deliver do
-      from  mail_details[:from]
-      to    mail_details[:to]
-      subject mail_details[:subject]
-      body  mail_details[:body]
-      if outfile
-        add_file  outfile
-      end
+      from     mail_details[:from]
+      to       mail_details[:to]
+      subject  mail_details[:subject]
+      body     mail_details[:body]
+
+      add_file outfile if outfile
     end
-    if remove_file
-      File.delete(outfile)
-    end
+    File.delete(outfile) if remove_file
   end
 
   # query is just an SQL query as a string
   #   query = "SELECT * FROM table WHERE a = 2 and b like 'thing'"
   # or as a file containing such a string
-  #
-  
   def self.run_query(query)
     @query = File.file?(query) ? File.read(query) : query
-    #puts 'running query'
     @results = self.conn.exec(@query)
   end
   private_class_method :run_query

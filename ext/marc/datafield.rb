@@ -22,18 +22,20 @@ module MARC
     # uses backslash characters for blank indicators
     # produces string even if no subfield data is present (e.g. "=856  40")
     def to_mrk(delimiter: '$')
-      if self.indicator1 == ' '
-        ind1 = '\\'
-      else
-        ind1 = self.indicator1
-      end
-      if self.indicator2 == ' '
-        ind2 = '\\'
-      else
-        ind2 = self.indicator2
-      end
-      f = "=#{self.tag}  #{ind1}#{ind2}"
-      self.subfields.each do |sf|
+      ind1 =
+        if indicator1 == ' '
+          '\\'
+        else
+          indicator1
+        end
+      ind2 =
+        if indicator2 == ' '
+          '\\'
+        else
+          indicator2
+        end
+      f = "=#{tag}  #{ind1}#{ind2}"
+      subfields.each do |sf|
         f += "#{delimiter}#{sf.code}#{sf.value}"
       end
       f
@@ -44,7 +46,7 @@ module MARC
     #   yields:         "|uhttp://example.com"
     def field_content
       f = ''
-      self.subfields.each do |sf|
+      subfields.each do |sf|
         f += "|#{sf.code}#{sf.value}"
       end
       f
@@ -81,8 +83,8 @@ module MARC
       # subfields
       if only_first_of_each_code
         subfields = []
-        self.codes.each do |code|
-          subfields << self.subfields.find { |sf| sf.code == code }
+        codes.each do |sf_code|
+          subfields << self.subfields.find { |sf| sf.code == sf_code }
         end
       else
         subfields = @subfields.dup
@@ -97,7 +99,7 @@ module MARC
           subfields.select! { |f| f.send(method) =~ criteria }
         end
       end
-      
+
       # remove candidates matching negative criteria
       {code: code_not, value: value_not}.each do |method, criteria|
         next unless criteria
@@ -142,12 +144,10 @@ module MARC
       positives = {tag: tag, indicator1: ind1, indicator2: ind2, value: value}
       positives.each do |method, criteria|
         next unless criteria
-        # assume criteria is a regexp and check for matchiness
-        # if that falls over, assume a string and check for equality
-        begin
-          return false unless self.send(method) =~ criteria
-        rescue TypeError
+        if criteria.is_a?(String)
           return false unless self.send(method) == criteria
+        elsif criteria.is_a?(Regexp)
+          return false unless self.send(method) =~ criteria
         end
       end
 
@@ -157,12 +157,10 @@ module MARC
                    value: value_not}
       negatives.each do |method, criteria|
         next unless criteria
-        # assume criteria is a regexp and check for (non)matchiness
-        # if that falls over, assume a string and check for (non)equality
-        begin
-          return false if self.send(method) =~ criteria
-        rescue TypeError
+        if criteria.is_a?(String)
           return false if self.send(method) == criteria
+        elsif criteria.is_a?(Regexp)
+          return false if self.send(method) =~ criteria
         end
       end
 
@@ -185,6 +183,6 @@ module MARC
       end
 
       true
-      end
+    end
   end
 end
