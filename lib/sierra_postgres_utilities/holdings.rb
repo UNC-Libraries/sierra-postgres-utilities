@@ -1,9 +1,8 @@
 # coding: utf-8
-require_relative 'connect'
 require_relative 'record'
 
 class SierraHoldings < SierraRecord
-  attr_reader :cnum, :given_cnum, :record_id, :deleted, :suppressed, :warnings
+  attr_reader :cnum, :given_cnum, :suppressed
 
   @@rtype = 'c'
   @@sql_name =  'holding'
@@ -11,7 +10,7 @@ class SierraHoldings < SierraRecord
 
 
   def initialize(cnum)
-    super(rnum: cnum, rtype: self.rtype)
+    super(rnum: cnum, rtype: rtype)
     @cnum = @rnum
   end
 
@@ -24,7 +23,7 @@ class SierraHoldings < SierraRecord
   end
 
   def suppressed?
-    self.rec_data[:scode2] == 'n'
+    rec_data[:scode2] == 'n'
   end
 
 end
