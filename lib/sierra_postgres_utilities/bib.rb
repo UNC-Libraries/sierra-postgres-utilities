@@ -168,9 +168,13 @@ class SierraBib < SierraRecord
     # At least for trln_discovery extract, we do assume an implicit |a when the
     # data does not begin with another subfield and need to make that an
     # explicit |a
-    field_content = field_content.insert(0, '|a') if field_content[0] != '|'
+    field_content = field_content.insert(0, '|a') unless field_content[0] == '|'
     arry = field_content.split('|')
-    arry[1..-1].map { |x| [x[0], x[1..-1]] }
+    arry.shift
+    # if field_content is literally "|" (no subfield code), arry will be empty
+    # array; doing arry[1..-1].map... (without shifting) would throw an error
+    # when arry is empty.
+    arry.map { |x| [x[0], x[1..-1]] }
   end
 
   def get_marc_varfields
@@ -242,17 +246,18 @@ class SierraBib < SierraRecord
 
   def read_ldr
     return {} unless record_id
-    # ldr building logic from: https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
+    # ldr building logic from:
+    # https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
     query = "select * from sierra_view.leader_field ldr where ldr.record_id = #{record_id}"
     conn.make_query(query)
     @multiple_LDRs_flag = true if conn.results.entries.length >= 2
     if conn.results.entries.empty?
+      myldr = {}
       @ldr = nil
-      @ldr_data = {}
-      return @ldr_data
+    else
+      myldr = conn.results.entries.first.collect { |k, v| [k.to_sym, v] }.to_h
+      @ldr = ldr_data_to_string(myldr)
     end
-    myldr = conn.results.entries.first.collect { |k, v| [k.to_sym, v] }.to_h
-    @ldr = ldr_data_to_string(myldr)
     @ldr_data = myldr
   end
 
@@ -322,7 +327,8 @@ class SierraBib < SierraRecord
     var_varfield =
       marc_varfields.
       reject { |tag, _| tag =~ /^00/ }.
-      values.flatten
+      values.
+      flatten
     var_varfield.each do |vf|
       mh['fields'] << [vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
                        subfield_arry(vf[:field_content].strip)]
@@ -403,8 +409,18 @@ class SierraBib < SierraRecord
   end
 
   def proper_506s(strict: true, yield_errors: false)
-    need_x = collections.length > 1
-    p506s = collections.map { |c| c.m506(include_x: need_x) }.uniq
+    return unless collections.first.unl? || collections.first.sersol?
+    if collections.map(&:m506).map(&:to_s).uniq.count > 1
+      p506s = []
+      collections.each do |coll|
+        coll506 = coll.m506(include_sf_3: true)
+        next if p506s.map(&to_mrk).include?(coll506.to_mrk)
+        p506s << coll506
+      end
+    else
+      p506s = [collections.first.m506]
+    end
+    p506s&.compact!&.sort_by!(&:to_mrk)
     return p506s unless strict
     errors = collections.map(&:m506_error).uniq.compact
     if errors.empty?
@@ -414,26 +430,56 @@ class SierraBib < SierraRecord
     end
   end
 
+  def correct_506s?
+    proper_506s == marc.fields('506').sort
+  end
+
   def extra_506s(whitelisted: [])
-    extra = proper_506s.sort - marc.fields('506')
+    extra = marc.fields('506').sort - proper_506s.to_a
     extra - whitelisted
   end
 
   def lacking_506s
-    marc.fields('506') - proper_506s.sort
+    proper_506s.to_a - marc.fields('506').sort
   end
 
   def collections
     @collections ||= get_collections
   end
 
+  def m506_fix_output
+    return if correct_506s?
+    return unless proper_506s
+    lack =
+      if lacking_506s.empty?
+        nil
+      else
+        lacking_506s.map(&:to_mrk).join(';;;')
+      end
+    extra =
+      if extra_506s.empty?
+        nil
+      else
+        extra_506s.map(&:to_mrk).join(';;;')
+      end
+    [@bnum, lack, extra]
+  end
+
+  def m506_error_output
+    errors = collections.map(&:m506_error).uniq.compact
+    unless errors.empty? ||
+        (errors.count == 1 && errors.first.match(/Conc users varies by title/))
+      [@bnum, errors.join(';;;')]
+    end
+  end
+
   def get_collections
-    require_relative 'ebook_collections'
+    require_relative '../../ebook_collections'
     my_colls = marc.fields('773')
     my_colls.reject! do |f|
       f.value =~ /^OCLC WorldShare Collection Manager managed collection/
     end
-    my_colls.map! { |m773| EbookCollections.colls[m773['t']] }
+    my_colls.map! { |m773| CollData.colls[m773['t']] }
     my_colls.delete(nil)
     @collections = my_colls
   end

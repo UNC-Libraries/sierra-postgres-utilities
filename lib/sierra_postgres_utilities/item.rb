@@ -130,6 +130,10 @@ class SierraItem < SierraRecord
     rec_data[:is_suppressed] == 't'
   end
 
+  # Returns checkout data and reads/sets it if it hasn't already been read.
+  #
+  # Default is to remove the patron_record_id from the data. Without the
+  # patron_record_id, ptype and checkout_gmt are the most de-anonymizing fields.
   def checkout_data(drop_patron: true)
     if @checkout_data
       return @checkout_data
@@ -142,10 +146,14 @@ class SierraItem < SierraRecord
     end
   end
 
-  def read_checkout(drop_patron:)
+  # Reads checkout data.
+  #
+  # Default is to remove the patron_record_id from the data. Without the
+  # patron_record_id, ptype and checkout_gmt are the most de-anonymizing fields.
+  def read_checkout(drop_patron: true)
     return {} unless record_id
     query = <<-SQL
-      select c.due_gmt
+      select *
       from sierra_view.checkout c
       where c.item_record_id = #{record_id}
     SQL
@@ -153,7 +161,9 @@ class SierraItem < SierraRecord
     # items not checked out have no checkout data
     # set a flag so we don't recheck
     @queried_checkout_data = true
-    conn.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
+    data = conn.results.entries[0]&.collect { |k,v| [k.to_sym, v] }.to_h
+    data.delete(:patron_record_id) if drop_patron
+    data
   end
 
   def due_date(strformat: '%Y%m%d')

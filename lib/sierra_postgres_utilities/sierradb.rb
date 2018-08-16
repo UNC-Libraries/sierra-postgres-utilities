@@ -65,7 +65,14 @@ module SierraDB
     @@emails['default_email']
   end
 
-  # Connects to SierraDB using specified credentials
+  # Connects to SierraDB using creds from specified YAML file or given hash.
+  #
+  # Possible specified credentials:
+  # 'prod' : uses sierra_prod.secret in secrets directory # creds for prod db
+  # 'test' : uses sierra_test.secret in secrets directory # creds for test db
+  # [filename] : reads secrets from file specified. First looks for file in
+  #            secrets dir, and looks for file in current dir if that fails
+  # [somehash]: accepts a hash containing the credentials
   def self.make_connection(cred:)
     @@secrets_dir = File.dirname(File.expand_path('..', __dir__)).to_s
     @@prod_cred = YAML.load_file(File.join(@@secrets_dir, '/sierra_prod.secret'))

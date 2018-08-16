@@ -92,7 +92,7 @@ RSpec.describe MARC::Record do
       expect(r.get_oclcnum).to eq(nil)
     end
   end
-  
+
   describe 'get_035oclcnums' do
 
     it 'returns oclc_number even when 001 is digits only and 003 = OCoLC' do
@@ -130,9 +130,9 @@ RSpec.describe MARC::Record do
       r = ocn_stub_builder('123', 'ItFiC', ['(OCoLC)'])
       expect(r.get_035oclcnums).to be_nil
     end
-  
+
   end
-  
+
   describe 'oclcnum' do
     it 'sets MARC::Record oclcnum instance attribute when OCLC Number present' do
       r = ocn_stub_builder('123', '', [])
@@ -227,7 +227,7 @@ RSpec.describe MARC::Record do
 
 
   describe 'm300_without_a' do
-    
+
     rec1 = MARC::Record.new
     rec1 << MARC::DataField.new('300', ' ', ' ', ['a', ''])
     rec1 << MARC::DataField.new('300', ' ', ' ', ['b', ''])
@@ -246,7 +246,7 @@ RSpec.describe MARC::Record do
     it 'is false if no 300s exist' do
       expect(rec4.m300_without_a?).to be false
     end
-    
+
   end
 
   describe 'count' do
@@ -266,6 +266,25 @@ RSpec.describe MARC::Record do
     it 'returns 0 if no fields' do
       expect(rec1.count('999')).to eq(0)
     end
+  end
+
+  describe 'sort' do
+    let(:a999) { MARC::DataField.new('999', ' ', ' ', ['3', 'v.1']) }
+    let(:a856) { MARC::DataField.new('856', ' ', ' ', ['3', 'v.2']) }
+    let(:b856) { MARC::DataField.new('856', ' ', ' ', ['3', 'v.1']) }
+    let(:rec) {
+      r = MARC::Record.new
+      [a999, a856, b856].each { |f| r.append(f) }
+      r
+    }
+    it 'reorders fields to be in ascending order by tag' do
+      expect(rec.sort.fields.last).to eq(a999)
+    end
+
+    it 'within a field tag (e.g. 856) retains original order' do
+      expect(rec.sort.fields.first).to eq(a856)
+    end
+
   end
 
   describe 'field_find_all' do

@@ -168,7 +168,8 @@ module MARC
     # ordering of fields with the same tag is retained
     def sort
       sorter = to_hash
-      sorter['fields'] = sorter['fields'].sort_by(&:keys)
+      sorter['fields'] =
+        sorter['fields'].sort_by.with_index { |f, idx| [f.keys, idx] }
       MARC::Record.new_from_hash(sorter)
     end
 

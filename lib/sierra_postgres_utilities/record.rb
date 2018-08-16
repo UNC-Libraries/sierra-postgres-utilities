@@ -111,7 +111,7 @@ class SierraRecord
         @varfields
       end
     if value_only
-      a&.map { |f| f[:field_content]}
+      a&.map { |f| f[:field_content] }
     else
       a
     end
