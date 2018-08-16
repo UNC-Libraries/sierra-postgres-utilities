@@ -42,21 +42,25 @@ class SierraOrder < SierraRecord
     format_date(date: raw, strformat: strformat)
   end
 
+  # Returns cmf_data.
+  # Orders may have multiple cmf entries, so this is an array of hashes.
   def cmf_data
     @cmf_data ||= read_cmf
   end
 
+  # Reads cmf_data.
+  # Orders may have multiple cmf entries, so this is an array of hashes.
   def read_cmf
     return {} unless record_id
     query = <<-SQL
       select *
       from sierra_view.order_record_cmf cmf
-      where cmf.order_record_id = #{@record_id}
+      where cmf.order_record_id = #{record_id}
     SQL
     conn.make_query(query)
-    @cmf_data = conn.results.entries.map { |entry|
+    @cmf_data = conn.results.entries.map do |entry|
       entry.collect { |k, v| [k.to_sym, v] }.to_h
-    }
+    end
   end
 
   def location

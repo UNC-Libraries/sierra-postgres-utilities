@@ -63,7 +63,7 @@ c.write_results('output.txt')
 existing_file_to_mail = 'output.txt'
 c.mail_results(existing_file_to_mail, mail_details, remove_file: true)
 </pre>
-passing <code>remove_file: true</code> deletes output.txt after sending the email; <code>remove_file: false</code> leaves output.txt in place. 
+passing <code>remove_file: true</code> deletes output.txt after sending the email; <code>remove_file: false</code> leaves output.txt in place.
 
 ### Modifying results
 You can modify/select/etc the query results as you like, and write the modified array of records to file.
@@ -76,12 +76,13 @@ mod.select! { |x| detect_html(x['field_content']) }.
 c.write_results(mod, headers: ['bnum', 'field_content', 'html_flag'])
 </pre>
 By default, included headers are the headers from the sql query, so specify headers if needed.
+
 ### Loading into other scripts
 
-postgres_connect isn't getting installed and can have varying paths, so what I've been doing is keeping the postgres_connect folder and the folders for scripts dependent on postgres_connect in the same directory, so:
-* .../code/postgres_connect/connect.rb
-* .../code/dependent_on_postgres-connect/dependent_thing.rb
+sierra-postgres-utilities isn't getting installed and can have varying paths, so what I've been doing is keeping the sierra-postgres-utilities folder and the folders for scripts dependent on sierra-postgres-utilities in the same directory, so:
+* .../code/sierra-postgres-utilities/.git
+* .../code/dependent_repo/dependent_thing.rb
 
 and then doing
-<code>require_relative '../postgres_connect/connect.rb'</code> in dependent_thing.rb
+<code>require_relative '../sierra-postgres-utilities/connect.rb'</code> in dependent_thing.rb
 

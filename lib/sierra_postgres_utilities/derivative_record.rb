@@ -69,7 +69,12 @@ class DerivativeRecord
   #   linebreaks added to make human readable
   # I believe options for in-built readers we tried were
   # either/or in those areas.
-  # datafields (not controlfields) are stripped of leading/trailing whitespace
+  #
+  # Writes the MARC faithfully, except:
+  #   datafields (not controlfields) are stripped of leading/trailing whitespace
+  #   drops any 002/004/009 fields
+  #   drops any datafields containing no subfields
+  #   xml escapes reserved characters
   #
   # outfile: open outfile for marcxml
   # strict:
@@ -92,12 +97,19 @@ class DerivativeRecord
     xml << "  <leader>#{altmarc.leader}</leader>\n" if altmarc.leader
     marc.each do |f|
       if f.tag =~ /^00/
-        # drop /00[249]
+        # drop /00[249]/
         if f.tag =~ /00[135678]/
           data = escape_xml_reserved(f.value)
           xml << "  <controlfield tag='#{f.tag}'>#{data}</controlfield>\n"
         end
       else
+        # Don't write datafields where no subfield exists.
+        # Note: This is not skipping fields with >= a single empty subfield
+        #     e.g. not skipping "=856  42|u"
+        #   This is skipping fields with no subfield
+        #     e.g. skipping "=856  42|" and "=856  42"
+        next if f.subfields.empty?
+
         xml << "  <datafield tag='#{f.tag}' ind1='#{f.indicator1}' ind2='#{f.indicator2}'>\n"
         f.subfields.each do |sf|
           data = escape_xml_reserved(sf.value)
