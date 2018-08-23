@@ -7,8 +7,6 @@ class SierraHoldings < SierraRecord
   @@rtype = 'c'
   @@sql_name =  'holding'
 
-
-
   def initialize(cnum)
     super(rnum: cnum, rtype: rtype)
     @cnum = @rnum
@@ -25,5 +23,4 @@ class SierraHoldings < SierraRecord
   def suppressed?
     rec_data[:scode2] == 'n'
   end
-
 end

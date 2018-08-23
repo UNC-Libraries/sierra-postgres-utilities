@@ -36,6 +36,11 @@ class SierraRecord
     end
   end
 
+  # e.g. #<SierraBib:b9256886a>"
+  def inspect
+    "#<#{self.class.name}:#{rnum}>"
+  end
+
   # @rnum           = i1094852a
   # rnum_trunc      = i1094852
   def rnum_trunc
@@ -151,27 +156,6 @@ class SierraRecord
     end
     vf
   end
-
-#  # Returns varfields (as sql hashes) for given varfield_type_code or marc_tag.
-#  def varfield(type_or_tag)
-#    varfields[type_or_tag] || marc_varfields[type_or_tag]
-#  end
-#
-#  # Returns varfield contents (as strings)
-#  def varfield_value(type_or_tag)
-#    varfield(type_or_tag)&.
-#         map { |f| f[:field_content]}
-#  end
-#
-#  def vf_helper(varfield_type: nil, varfield_tag: nil, value_only:)
-#    limiter = varfield_type || varfield_tag
-#    return nil unless limiter
-#    if value_only
-#      varfield_value(limiter)
-#    else
-#      varfield(limiter)
-#    end
-#  end
 
   # Returns bib/item/etc data from [rectype]_record
   def rec_data

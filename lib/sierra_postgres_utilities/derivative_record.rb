@@ -1,4 +1,17 @@
-
+# Derive alternate system bib record from Sierra bib
+#
+# For example, take a Sierra bib and attached records and derive
+# Google Books MARC/marcxml.
+# Or combine with an Internet Archive record to derive MARC/marcxml
+# conforming to HathiTrust ingest specs.
+#
+# Generally this gets subclassed to provide alternate system-specific
+# transformations and checks.
+#
+# The major processes this class does are:
+#   Modify/combine Sierra MARC into alternate marc
+#   Allow for MARC quality-checks
+#   Write the alternate marc to xml
 class DerivativeRecord
   attr_reader :bnum, :warnings, :sierra, :smarc
 
@@ -7,10 +20,10 @@ class DerivativeRecord
     @sierra = sierra_bib
     @bnum = @sierra.bnum
     if @sierra.record_id.nil?
-      self.warn('No record was found in Sierra for this bnum')
+      warn('No record was found in Sierra for this bnum')
       return
     elsif @sierra.deleted?
-      self.warn('Sierra bib for this bnum was deleted')
+      warn('Sierra bib for this bnum was deleted')
       return
     end
     @smarc = @sierra.marc
@@ -81,10 +94,6 @@ class DerivativeRecord
   #   true: perform any tests in check_marc and abort writing
   #     unless tests pass
   #   false: skip check_marc; never abort
-  # reverse_xml:
-  # false: <datafield tag='#{f.tag}' ind1='#{f.indicator1}' ind2='#{f.indicator2}'>
-  #  true: <datafield ind1='#{f.indicator1}' ind2='#{f.indicator2}' tag='#{f.tag}'>
-
   def manual_write_xml(options)
     xml = options[:outfile]
     if options[:strict]
