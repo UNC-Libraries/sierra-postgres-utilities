@@ -114,17 +114,17 @@ password: mypassword
 
 If you name the file ```sierra_prod.secret``` it will be the default connection.
 
-Any file can be designated with ```SierraDB.connect_as(cred: filename)```
+Use some other file with ```SierraDB.connect_as(creds: filename)```
 
-Test server connection: a file named ```sierra_test.secret``` can be designated with ```SierraDB.connect_as(cred: 'test')```
+Set a test server connection in a file named ```sierra_test.secret```. Use it with ```SierraDB.connect_as(creds: 'test')```
 
 #### Passed as argument
 
-Pass a hash containing the same connection info as the yaml file: ```SierraDB.connect_as(cred: cred_hash)```
+Pass the connection info (host, port, dbname, user, password) in a hash: ```SierraDB.connect_as(creds: cred_hash)```
 
 ### SMTP connection / email address storage
 
-Define an smtp connection that does not require authentication if you'll use this to send emails.
+Define an smtp connection (that does not require authentication) if you'll use this to send emails.
 Create ```smtp.secret``` in the base directory:
 
 ```yaml
