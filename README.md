@@ -80,8 +80,6 @@ SierraDB.write_results('output.tsv')
 SierraDB.write_results('output.csv', format: 'csv')
 SierraDB.write_results('output.xlsx', format: 'xlsx') # Windows only. Maybe Mac. Not Linux.
 
-# Manipulate results and write modified results to file
-
 # Send results as attachment
 details =  {:from    => 'user@example.com',
             :to      => 'other@example.com',
@@ -159,5 +157,5 @@ This isn't a gem. It isn't getting installed and can have varying paths, so we'v
 and then in dependent_thing.rb doing:
 
 ```ruby
-require_relative '../sierra-postgres-utilities/lib/sierra_postgres_utilities.rb.rb'
+require_relative '../sierra-postgres-utilities/lib/sierra_postgres_utilities.rb'
 ```
