@@ -1,88 +1,163 @@
-# postgres_connect
+# sierra-postgres-utilities
 
-Ruby connection to iii Sierra ILS postgres database / SierraDNA, meant to simplify making queries, exporting results, and some transformation of MARC or non-MARC Sierra data.
+Ruby connection to iii Sierra ILS postgres database / SierraDNA, meant to simplify making queries, exporting results, and some lookup / manipulation / transformation of MARC or non-MARC Sierra data and records.
 
 __NOTE: This is in early development and future changes may well not be backwards compatible.__
 
-## SETUP
-* Clone or download a copy.
-* gem install mail
-* gem install pg
-* supply the credentials per the below
+__NOTE: Some sites may have iii setups that store different data in different places (e.g. bcode1, bcode2, bcode3) or differing local MARC practices (is the 001 an OCLC number?), and parts of these scripts do not account for that.__
 
-### Production credentials
-Create <code>sierra_prod.secret</code>, a YAML file with authentication details, in the postgres_connect directory. For example:
-<pre>
+## Usage overview
+
+### Interact with bib (and other) records
+
+```ruby
+require_relative 'lib/sierra_postgres_utilities.rb'
+
+bnum = 'b9256886a'
+bib = SierraBib.new(bnum)
+
+bib.suppressed?   #=> false
+bib.deleted?      #=> false
+bib.mat_type      #=> "a"
+
+# Get data from sierra_view.bib_record as a hash
+bib.rec_data      #=> {:id=>"420916051894",
+                  #    :record_id=>"420916051894",
+                  #    :language_code=>"eng",
+                  #    :bcode1=>"m",
+                  #    :bcode2=>"a",
+                  #    :bcode3=>"-",
+                  #    ....
+                  #    :is_suppressed=>"f"}
+
+# Get bib as a ruby-marc object (https://github.com/ruby-marc/ruby-marc/)
+bib.marc
+
+# Write MARC to binary file (as per normal ruby-marc)
+w = MARC::Writer.new('bib.mrc')
+w.write(bib.marc)
+w.close
+
+# Get MARC as mrk
+puts bib.marc.to_mrk
+    #=> =LDR  01398cam  2200373Ii 4500
+    #   =001  1030972212
+    #   =003  OCoLC
+    #   =005  20180727041344.0
+    #   =008  180410t20182018enk      b    001 0 eng d
+    #   =010  \\$a  2018938050
+    #   =019  \\$a1031042882
+    #   =020  \\$a1788744039
+    #   ...
+
+# Get an array of item records attached to the bib
+bib.items                #=> [#<SierraItem:i11736082a>]
+
+item = bib.items.first
+item.status_code         #=> "-"
+item.status_description  #=> "Available"
+item.barcodes            #=> ["00053203834"]
+```
+
+### Run arbitrary queries against the PostgresDB / SierraDNA
+
+```ruby
+query = "select * from sierra_view.subfield limit 1"
+
+# Execute query and return a PG::Result object
+SierraDB.make_query(query)
+
+SierraDB.results            # reference the same PG::Result object
+
+SierraDB.results.entries    # results as array of record hashes
+  #=> [{"record_id"=>"425206113029", "varfield_id"=>"57093780", ...}]
+
+SierraDB.results.values     # results as array of record arrays
+  #=> [["425206113029", "57093780", ...]]
+
+# Write results to file
+SierraDB.write_results('output.tsv')
+SierraDB.write_results('output.csv', format: 'csv')
+SierraDB.write_results('output.xlsx', format: 'xlsx') # Windows only. Maybe Mac. Not Linux.
+
+# Manipulate results and write modified results to file
+
+# Send results as attachment
+details =  {:from    => 'user@example.com',
+            :to      => 'other@example.com',
+            :cc      => 'also@example.com',
+            :subject => 'that query',
+            :body    => 'Attached.'}
+SierraDB.mail_results('output.tsv', mail_details: details)
+```
+
+## SETUP
+
+* Clone or download a copy.
+* ```gem install mail```
+* ```gem install pg```
+* ```gem install marc```
+* supply the Sierra postgres credentials per the below
+* optionally supply smtp server address
+
+### Credentials
+
+#### Stored in file
+
+Create a yaml file in the base directory like so:
+
+```yaml
 host: myhost.example.com
 port: 1032
 dbname: mydb
 user: myusername
 password: mypassword
-</pre>
-Sorry to be storing the password in this manner.
+```
 
-### Test credentials
-You can create <code>sierra_test.secret</code> with YAML auth details for a test server.
-<pre>c = Connect.new(cred: 'test')</pre> will use those test server credentials.
+If you name the file ```sierra_prod.secret``` it will be the default connection.
 
-### Email address storage
-You can create a YAML file <code>email.secret</code>. Example contents:
-<pre>
+Any file can be designated with ```SierraDB.connect_as(cred: filename)```
+
+Test server connection: a file named ```sierra_test.secret``` can be designated with ```SierraDB.connect_as(cred: 'test')```
+
+#### Passed as argument
+
+Pass a hash containing the same connection info as the yaml file: ```SierraDB.connect_as(cred: cred_hash)```
+
+### SMTP connection / email address storage
+
+Define an smtp connection that does not require authentication if you'll use this to send emails.
+Create ```smtp.secret``` in the base directory:
+
+```yaml
+address: smtp.example.com
+port: 25
+```
+
+You can create a YAML file ```email.secret```. Example contents:
+
+```yaml
 default_email: user@example.com
 other_email: other_user@example.com
-</pre>
-And then:
-<pre>
+```
+
+And then in ruby:
+
+```ruby
 c.yield_email                         # => user@example.com
 c.yield_email(index: 'default_email') # => user@example.com
 c.yield_email(index: 'other_email')   # => other_user@example.com
-</pre>
+```
 
-## USAGE
-### Making queries, writing results
-<pre>
-c = Connect.new
-query = 'select * from sierra_view.bib_record limit 1'
-c.make_query(query)
-c.write_results('output.txt', include_headers: true, format: 'tsv')
-c.make_query('queryfile.sql')
-</pre>
-Valid output formats are: 'tsv', 'csv', 'xlsx'
+## Loading into other scripts
 
-Writing to xlsx requires <code>include_headers: true</code>
+This isn't a gem. It isn't getting installed and can have varying paths, so we've been keeping the sierra-postgres-utilities folder and the folders for scripts dependent on sierra-postgres-utilities in the same directory, so:
 
-### Emailing results
-Send the results as an email attachment in addition to or instead of writing to file. The UNC smtp address is just hardcoded in.
-<pre>
-email_address = c.yield_email  # gets default email from email.secret
-mail_details = {:from => email_address,
-                :to => email_address,
-                :subject => 'Report: html entity cleanup',
-                :body => 'Attached is the report'}
-c.write_results('output.txt')
-existing_file_to_mail = 'output.txt'
-c.mail_results(existing_file_to_mail, mail_details, remove_file: true)
-</pre>
-passing <code>remove_file: true</code> deletes output.txt after sending the email; <code>remove_file: false</code> leaves output.txt in place.
-
-### Modifying results
-You can modify/select/etc the query results as you like, and write the modified array of records to file.
-<pre>
-c.make_query(my_query)
-html_problems = []
-mod = c.results.entries.dup
-mod.select! { |x| detect_html(x['field_content']) }.
-    map! { |x| x.merge({'flag_field' => 'html'}) }
-c.write_results(mod, headers: ['bnum', 'field_content', 'html_flag'])
-</pre>
-By default, included headers are the headers from the sql query, so specify headers if needed.
-
-### Loading into other scripts
-
-sierra-postgres-utilities isn't getting installed and can have varying paths, so what I've been doing is keeping the sierra-postgres-utilities folder and the folders for scripts dependent on sierra-postgres-utilities in the same directory, so:
 * .../code/sierra-postgres-utilities/.git
 * .../code/dependent_repo/dependent_thing.rb
 
-and then doing
-<code>require_relative '../sierra-postgres-utilities/connect.rb'</code> in dependent_thing.rb
+and then in dependent_thing.rb doing:
 
+```ruby
+require_relative '../sierra-postgres-utilities/lib/sierra_postgres_utilities.rb.rb'
+```
