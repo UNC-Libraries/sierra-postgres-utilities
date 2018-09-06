@@ -94,9 +94,9 @@ class DerivativeRecord
   #   true: perform any tests in check_marc and abort writing
   #     unless tests pass
   #   false: skip check_marc; never abort
-  def manual_write_xml(options)
-    xml = options[:outfile]
-    if options[:strict]
+  def manual_write_xml(outfile:, strict: true, strip_datafields: true)
+    xml = outfile
+    if strict
       check_marc
       return unless @warnings.empty?
     end
@@ -122,7 +122,8 @@ class DerivativeRecord
         xml << "  <datafield tag='#{f.tag}' ind1='#{f.indicator1}' ind2='#{f.indicator2}'>\n"
         f.subfields.each do |sf|
           data = escape_xml_reserved(sf.value)
-          xml << "    <subfield code='#{sf.code}'>#{data.strip}</subfield>\n"
+          data.strip! if strip_datafields
+          xml << "    <subfield code='#{sf.code}'>#{data}</subfield>\n"
         end
         xml << "  </datafield>\n"
       end
