@@ -16,19 +16,19 @@ require_relative 'lib/sierra_postgres_utilities.rb'
 bnum = 'b9256886a'
 bib = SierraBib.new(bnum)
 
-bib.suppressed?   #=> false
-bib.deleted?      #=> false
-bib.mat_type      #=> "a"
+bib.suppressed?     #=> false
+bib.deleted?        #=> false
+bib.mat_type        #=> "a"
 
 # Get data from sierra_view.bib_record as a hash
-bib.rec_data      #=> {:id=>"420916051894",
-                  #    :record_id=>"420916051894",
-                  #    :language_code=>"eng",
-                  #    :bcode1=>"m",
-                  #    :bcode2=>"a",
-                  #    :bcode3=>"-",
-                  #    ....
-                  #    :is_suppressed=>"f"}
+bib.bib_record      #=> {:id=>"420916051894",
+                    #    :record_id=>"420916051894",
+                    #    :language_code=>"eng",
+                    #    :bcode1=>"m",
+                    #    :bcode2=>"a",
+                    #    :bcode3=>"-",
+                    #    ....
+                    #    :is_suppressed=>"f"}
 
 # Get bib as a ruby-marc object (https://github.com/ruby-marc/ruby-marc/)
 bib.marc
@@ -88,6 +88,20 @@ details =  {:from    => 'user@example.com',
             :body    => 'Attached.'}
 SierraDB.mail_results('output.tsv', mail_details: details)
 ```
+
+### Retrieve arbitrary views
+Retrieve arbitrary views as arrays of OpenStruct objects via ```SierraDB.[view_name]```.
+```ruby
+SierraDB.item_status_property_myuser.
+         map { |r| [r.code, r.name] }.
+         to_h
+  #=> {"!"=>"ON HOLDSHELF", "$"=>"LOST AND PAID", ...
+```
+
+### Retrieve defined views in the context of a particular record
+Retrieve records related to a specific object via object.[view_name]. E.g.:
+```bib.bib_record_item_record_link``` and ```bib.bib_record_property```
+return any of ```bib```'s entries in those two views.
 
 ## SETUP
 

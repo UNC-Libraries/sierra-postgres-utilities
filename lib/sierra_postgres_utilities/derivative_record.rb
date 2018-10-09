@@ -59,6 +59,11 @@ class DerivativeRecord
     altmarc.sort
   end
 
+  # This is to be defined in subclasses (when a 955 is supposed to carry
+  # item/InternetArchive/whatever details)
+  def my955
+  end
+
   def warn(message)
     @warnings << message
     # if given garbage bnum, we want that to display in error
@@ -95,12 +100,28 @@ class DerivativeRecord
   #     unless tests pass
   #   false: skip check_marc; never abort
   def manual_write_xml(outfile:, strict: true, strip_datafields: true)
-    xml = outfile
     if strict
       check_marc
       return unless @warnings.empty?
     end
 
+    ofile =
+    if outfile.respond_to?(:write)
+      outfile
+    else
+      File.open(outfile, 'w')
+    end
+
+    ofile.write(xml(strict: strict, strip_datafields: strip_datafields))
+  end
+
+  def xml(strict: true, strip_datafields: true)
+    if strict
+      check_marc
+      return unless @warnings.empty?
+    end
+
+    xml = ''
     marc = altmarc.to_a
     xml << "<record>\n"
     xml << "  <leader>#{altmarc.leader}</leader>\n" if altmarc.leader

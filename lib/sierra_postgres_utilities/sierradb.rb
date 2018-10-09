@@ -11,6 +11,11 @@ rescue LoadError
 end
 
 module SierraDB
+
+  # extension allows almost all views to be read with SierraDB.view_name
+  # e.g. SierraDB.branch_myuser
+  extend SierraPostgresUtilities::Views::General
+
   def self.conn(creds: 'prod')
     @conn ||= make_connection(creds: creds)
   end
