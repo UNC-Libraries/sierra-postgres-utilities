@@ -1,12 +1,12 @@
-require_relative '../lib/sierra_postgres_utilities.rb'
+require_relative '../../lib/sierra_postgres_utilities.rb'
 
 class SierraItem
   def set_varfield_data(hsh)
     @varfield_data = hsh
   end
 
-  def set_checkout_data(hsh)
-    @checkout_data = hsh
+  def set_checkout(hsh)
+    @checkout = OpenStruct.new(hsh)
   end
 end
 
@@ -14,6 +14,12 @@ RSpec.describe SierraItem do
   let(:item) { SierraItem.new('i2661010a') }
   let(:item_no_vf) { SierraItem.new('i11136193a') }
   let(:item_many_vf) { SierraItem.new('i10998994a') }
+
+  describe '#inum_trunc' do
+    it 'returns without check digit or "a"' do
+      expect(item.inum_trunc).to eq('i2661010')
+    end
+  end
 
   describe '#barcodes' do
 
@@ -124,10 +130,10 @@ RSpec.describe SierraItem do
   end
 
   describe '#due_date' do
-    it 'returns due date as YYYYMMDD string (by default)' do
+    it 'returns due date as DateTime object' do
       checked_item = SierraItem.new('i2661010a')
-      checked_item.set_checkout_data(due_gmt: '2018-08-08 04:00:00-04')
-      expect(checked_item.due_date).to eq('20180808')
+      checked_item.set_checkout(due_gmt: '2018-08-08 04:00:00-04')
+      expect(checked_item.due_date.is_a?(Time)).to be true
     end
   end
 

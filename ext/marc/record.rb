@@ -179,9 +179,9 @@ module MARC
     # When criteria is a regexp, properties must match / not match the regexp.
     # For example:
     #   Select 500 fields (same as rec.fields('500') )
-    #     field_search(tag: '500')
+    #     field_find_all(tag: '500')
     #   Select 856s with ind1 != 4, where content includes "http"
-    #    field_search(tag: '856', ind1_not: '4', content: /http/ )
+    #    field_find_all(tag: '856', ind1_not: '4', content: /http/ )
     #
     # Complex_subfields uses the subfield_search in DataField extension and
     #   :has, :has_no, :has_one, :has_as_first parameters.
@@ -214,7 +214,7 @@ module MARC
     #      >=1 subfield that isn't $c and does equal 'foo'
     #      0 $b that do not contain bar
     #      exactly 1 $h
-    #    field_search(tag: '245', complex_subfields: [
+    #    field_find_all(tag: '245', complex_subfields: [
     #                               [:has, code: 'a', value: /foo/],
     #                               [:has, code_not: 'c', value: 'foo']
     #                               [:has_no, code: 'b', value_not: /bar/],
@@ -222,9 +222,9 @@ module MARC
     #                             ])
     #
     # A simple subfield criteria mirroring the tag/ind1/etc. criteria
-    # is not included because value as a field_search keyword refers to the
+    # is not included because value as a field_find_all keyword refers to the
     # value of the entire field, and it seems easy to mistake
-    #   field_search(subfield: 'a', value: /foo/)
+    #   field_find_all(subfield: 'a', value: /foo/)
     # for something that is looking for foo inside a $a when it would
     # be looking for a field with a subfield 'a' where the field's value
     # contained foo.
