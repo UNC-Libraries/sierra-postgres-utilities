@@ -38,8 +38,9 @@ class DerivativeRecord
   # otherwise, have a subclass overwrite it
 
   def get_alt_marc
+
     # copy Sierra MARC
-    altmarc = MARC::Record.new_from_hash(@smarc.to_hash)
+    altmarc = MARC::Record.new_from_marc(@smarc.to_marc)
 
     # delete things
     altmarc.fields.delete_if { |f| f.tag =~ /001|003|9../ }
@@ -112,7 +113,9 @@ class DerivativeRecord
       File.open(outfile, 'w')
     end
 
-    ofile.write(xml(strict: strict, strip_datafields: strip_datafields))
+    # strict is false here; we don't need to check_marc again since we
+    # had the opportunity above.
+    ofile.write(xml(strict: false, strip_datafields: strip_datafields))
   end
 
   def xml(strict: true, strip_datafields: true)
@@ -127,11 +130,11 @@ class DerivativeRecord
     xml << "  <leader>#{altmarc.leader}</leader>\n" if altmarc.leader
     marc.each do |f|
       if f.tag =~ /^00/
-        # drop /00[249]/
-        if f.tag =~ /00[135678]/
-          data = escape_xml_reserved(f.value)
-          xml << "  <controlfield tag='#{f.tag}'>#{data}</controlfield>\n"
-        end
+        # only process /^00[135678]/ as control fields
+        next if f.tag =~ /[249]$/  # drop these fields entirely
+
+        data = escape_xml_reserved(f.value)
+        xml << "  <controlfield tag='#{f.tag}'>#{data}</controlfield>\n"
       else
         # Don't write datafields where no subfield exists.
         # Note: This is not skipping fields with >= a single empty subfield

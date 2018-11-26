@@ -31,7 +31,7 @@ class SierraPatron < SierraRecord
   end
 
   def expiration_date
-    strip_date(date: patron_record[:expiration_date_gmt])
+    patron_record[:expiration_date_gmt]
   end
 
   def emails(value_only: true)
@@ -53,6 +53,7 @@ class SierraPatron < SierraRecord
   # Lastname Firstname Middlename Suffix
   def fullname_concat_reverse
     f = patron_record_fullname.first
+    return unless f
     "#{f[:last_name]} #{f[:first_name]} #{f[:middle_name]} #{f[:suffix_name]}".
       gsub(/\s+/, ' ').
       strip
@@ -61,6 +62,7 @@ class SierraPatron < SierraRecord
   # Firstname Middlename Lastname Suffix
   def fullname_concat
     f = patron_record_fullname.first
+    return unless f
     "#{f[:first_name]} #{f[:middle_name]} #{f[:last_name]} #{f[:suffix_name]}".
       gsub(/\s+/, ' ').
       strip

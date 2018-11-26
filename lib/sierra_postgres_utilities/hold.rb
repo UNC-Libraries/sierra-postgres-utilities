@@ -3,7 +3,6 @@ class SierraHold
   attr_accessor :id
 
   include SierraPostgresUtilities::Views::Hold
-  include SierraPostgresUtilities::Helpers
 
   def initialize(id)
     @id = id
@@ -25,7 +24,7 @@ class SierraHold
   end
 
   def placed_date
-    @placed_date ||= strip_date(date: hold.placed_gmt)
+    @placed_date ||= hold.placed_gmt
   end
 
   def object # the item/bib/volume on hold
@@ -39,5 +38,12 @@ class SierraHold
 
   def patron
     @patron ||= SierraPatron.from_id(hold.patron_record_id)
+  end
+
+  # Returns each hold in SierraDB as a SierraHold
+  def self.each
+    SierraDB.send(:"hold").
+             map{ |r| SierraHold.new(r.id)}.
+             each
   end
 end

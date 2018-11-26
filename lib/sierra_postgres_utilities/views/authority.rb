@@ -1,14 +1,19 @@
 module SierraPostgresUtilities
   module Views
-    module Hold
+    module Authority
       extend Views::MethodConstructor
 
       views = [
         {
-          view: :hold,
-          view_match: :id, obj_match: :id,
+          view: :authority_record,
+          view_match: :id, obj_match: :record_id,
           entries: :first
-        }
+        },
+        {
+          view: :authority_view,
+          view_match: :id, obj_match: :record_id,
+          entries: :first
+        },
       ]
 
       views.each do |hsh|

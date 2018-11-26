@@ -5,7 +5,6 @@ class SierraRecord
   attr_reader :rnum, :given_rnum, :deleted, :warnings
 
   include SierraPostgresUtilities::Views::Record
-  include SierraPostgresUtilities::Helpers::Dates
   include SierraPostgresUtilities::Helpers::Varfields
 
   def self.rtype
@@ -24,7 +23,7 @@ class SierraRecord
     self.class.sql_name
   end
 
-  def initialize(rnum:, rtype:)
+  def initialize(rnum: nil, rtype: nil)
     # Must be given an rnum that does not include an actual check digit.
     #   Good: 'i2661010a', 'i26610102'
     #   Bad:  'i26610103'
@@ -33,14 +32,14 @@ class SierraRecord
     #   @given_rnum="b1094852a",
     #   @warnings=[],
     #   @rnum="b1094852a",
-    #   @record_metadata= #<OpenStruct id="420907986691", ...
+    #   @record_metadata= #<Struct id="420907986691", ...
     # >
     rnum = rnum.strip
     @given_rnum = rnum
     @warnings = []
     if rnum =~ /^#{rtype}[0-9]+a?$/
       @rnum = rnum.dup
-      @rnum += 'a' unless rnum[-1] == 'a'
+      @rnum << 'a' unless rnum.end_with?('a')
     else
       @warnings << "Cannot retrieve Sierra record. Rnum must start with #{rtype}"
       return
@@ -81,7 +80,7 @@ class SierraRecord
   # Returns record id
   # nil when record does not exist (e.g. given bad recnum)
   def record_id
-    record_metadata[:id]
+    @record_id ||= record_metadata[:id]
   end
 
   def check_digit(recnum)
@@ -100,20 +99,13 @@ class SierraRecord
     end
   end
 
-  # for backwards compatability
-  # returns array of sql varfield records
-  # empty hash if no varfields
-  def varfield_data
-    varfield
-  end
-
   # Returns all varfields (non-marc and marc)
   #   { varfield_type_code: array of field_content(s),... }
-  # Is nil when no such varfields
+  # empty array when no such varfields
   def varfields(type_or_tag = nil, value_only: false)
     arry =
       if type_or_tag
-        varfields_by_type[type_or_tag] || marc_varfields[type_or_tag]
+        varfields_by_type[type_or_tag] || marc_varfields[type_or_tag] || []
       else
         varfields_by_type.values.flatten
       end
@@ -131,16 +123,11 @@ class SierraRecord
 
   # Returns hash of varfields with varfield_type tags as keys
   def type_vf
-    vf = {}
     fields = varfield.sort_by { |field|
       [field[:varfield_type_code], field[:occ_num], field[:id]]
     }
-    fields.each do |field|
-      unless vf.include?(field[:varfield_type_code])
-        vf[field[:varfield_type_code]] = []
-      end
-      vf[field[:varfield_type_code]] << field
-    end
+    vf = fields.group_by { |f| f[:varfield_type_code] }
+    vf.delete(nil)
     vf
   end
 
@@ -151,14 +138,8 @@ class SierraRecord
 
   # Returns hash of marc varfields with marc_tag's as keys
   def marc_vf
-    vf = {}
-    marc = varfield.select { |field| field.marc_tag }
-    marc.each do |field|
-      unless vf.include?(field[:marc_tag])
-        vf[field[:marc_tag]] = []
-      end
-      vf[field[:marc_tag]] << field
-    end
+    vf = varfield.group_by { |f| f.marc_tag }
+    vf.delete(nil)
     vf
   end
 
@@ -183,57 +164,51 @@ class SierraRecord
     self.class.vf_codes(rtype: rtype)
   end
 
-  # Returns bib/item/etc data from [rectype]_record
-  def rec_data
-    send("#{sql_name}_record")
-  end
-
-  # Returns rec data from record_metadata
-  def rec_metadata
-    record_metadata
-  end
-
   def deleted?
-    record_metadata.deletion_date_gmt ? true : false
+    true if record_metadata.deletion_date_gmt
   end
 
-  # Returns rec creation date (default: as YYYMMDD string)
-  # strformat of nil gets a DateTime object
+  # Returns rec creation date
   def created_date
-    strip_date(date: record_metadata.creation_date_gmt)
+    record_metadata.creation_date_gmt
   end
 
-  # Returns rec updated date (default: as YYYMMDD string)
-  # strformat of nil gets a DateTime object
+  # Returns rec updated date
   def updated_date
-    strip_date(date: record_metadata.record_last_updated_gmt)
+    record_metadata.record_last_updated_gmt
   end
 
   # Returns array of attached Sierra[name] objects
-  # nil when none exist
+  # empty array when none exist
   def get_attached(name, view)
-    recs = send(view)
-    return unless recs
-    unless recs.is_a?(Array)
-      recs = [recs]
-    end
-    recs = recs.map { |r| SierraRecord.from_id(r.send("#{name}_record_id")) }.
-                compact
-    return recs unless recs.empty?
+    send(view).map { |r| SierraRecord.from_id(r.send("#{name}_record_id")) }
   end
 
   def self.from_id(id)
     return nil unless id
-    SierraDB
-    query = <<-SQL
-      select record_type_code || record_num || 'a' as rnum
-      from sierra_view.record_metadata rm
-      where id = \'#{id}\'
-    SQL
-    SierraDB.make_query(query)
-    return nil if SierraDB.results.entries.empty?
-    rnum = SierraDB.results.entries.first['rnum']
-    case rnum[0]
+    values = SierraDB.conn.exec_prepared(
+      'id_find_record_metadata',
+      [id]
+    ).first&.values
+    return nil unless values
+    metadata =
+      SierraPostgresUtilities::Views::Record.record_metadata_struct.new(
+        *values
+      )
+    rm_factory(metadata)
+  end
+
+  def self.rm_factory(record_metadata)
+    rtype = record_metadata[:record_type_code]
+    rnum = "#{rtype}#{record_metadata[:record_num]}a"
+    rec = factory(rnum, rtype: rtype)
+    rec.instance_variable_set("@read_record_metadata", record_metadata)
+    rec
+  end
+
+  def self.factory(rnum, rtype: nil)
+    rtype = rnum[0] unless rtype
+    case rtype
     when 'b'
       SierraBib.new(rnum)
     when 'i'
@@ -242,22 +217,34 @@ class SierraRecord
       SierraHoldings.new(rnum)
     when 'o'
       SierraOrder.new(rnum)
+    when 'a'
+      SierraAuthority.new(rnum)
     when 'p'
       SierraPatron.new(rnum)
     end
   end
 
   def self.from_phrase_search(index:, entry:)
-    query = <<~SQL
-      select record_id
-      from sierra_view.phrase_entry phe
-      where (phe.index_tag || phe.index_entry) ~ '^#{index}#{entry.lower}'
-    SQL
-    SierraDB.make_query(query)
-    return nil if SierraDB.results.entries.empty?
-    recs = SierraDB.results.values.flatten.map { |id| SierraRecord.from_id(id )}
+    regexp = "^#{index}#{entry.downcase}"
+    recs = SierraDB.conn.exec_prepared('search_phrase_entry', [regexp]).
+                         column_values(0).
+                         map { |id| SierraRecord.from_id(id)}
     return recs if recs.length > 1
+    return if recs.empty?
     recs.first
+  end
+
+  def self.from_create_list(listnum)
+    query = <<~SQL
+      select record_metadata_id
+      from sierra_view.bool_set
+      where bool_info_id = #{listnum}
+    SQL
+    recs = SierraDB.make_query(query).
+                    column_values(0).
+                    map! { |id| SierraRecord.from_id(id)}
+    return if recs.empty?
+    recs
   end
 
 
@@ -272,8 +259,9 @@ class SierraRecord
       from sierra_view.#{sqlname}_record
       where #{field} in ('#{criteria.join("', '")}')
     SQL
-    SierraDB.make_query(query)
-    SierraDB.results.values.flatten.map { |rid| SierraRecord.from_id(rid) }
+    SierraDB.make_query(query).
+             column_values(0).
+             map! { |rid| SierraRecord.from_id(rid) }
   end
 
   # SierraBib.random.best_title
@@ -288,12 +276,17 @@ class SierraRecord
       limit 10000
     SQL
     SierraDB.make_query(query)
-    recs = SierraDB.results.values.
+    recs = SierraDB.results.column_values(0).
                             sort_by { |x| rand }[0..-1+limit].
-                            flatten.
-                            map { |rid| SierraRecord.from_id(rid) }
+                            map! { |rid| SierraRecord.from_id(rid) }
     return recs if recs.length > 1
     recs.first
   end
 
+  def self.each
+    SierraDB.send(:"#{sql_name}_record").
+             each.
+             lazy.
+             map { |r| SierraRecord.from_id(r.id) }
+  end
 end

@@ -7,7 +7,7 @@ require_relative '../../../ext/marc/datafield'
 
 class SierraBib < SierraRecord
   attr_reader :bnum, :given_bnum, :multiple_LDRs_flag
-  attr_accessor :stub, :items
+  attr_accessor :stub, :items, :marc
 
   include SierraPostgresUtilities::Views::Bib
 
@@ -52,7 +52,7 @@ class SierraBib < SierraRecord
 
   # Returns cate_date as Time object
   def cat_date
-    strip_date(date: bib_record[:cataloging_date_gmt])
+    bib_record[:cataloging_date_gmt]
   end
 
   # deprecated
@@ -65,7 +65,7 @@ class SierraBib < SierraRecord
     @control_fields ||= compile_control_fields
   end
 
-  # Returns all MARC control fields as array of OpenStruct'd sql result hashes
+  # Returns all MARC control fields as array of sql result hashes
   # Gathers 006/007/008 stored in control_field and any 00X in varfield)
   # Fields in control_field are given proper marc_tag and field_content entries
   # e.g.
@@ -74,18 +74,19 @@ class SierraBib < SierraRecord
   #  {:id=>"90120881", ... :control_num=>"8", :p00=>"7", ...:marc_tag=>"008",
   #     :field_content=>"740314c19719999oncqr4p  s   f0   a0eng d"}]
   def compile_control_fields
-    return {} unless record_id
+    return unless record_id
     control = marc_varfields.
                 select { |tag, _| tag =~ /^00/ }.
                 values.flatten
     control_field.each do |cf|
       control_num = cf.control_num
-      next unless %w[6 7 8].include?(control_num)
+      next unless control_num.between?(6, 8)
       marc_tag = "00#{control_num}"
-      value = cf.to_h.values[4..43].map(&:to_s).join
-      value.strip! unless control_num == '8'
-      cf.marc_tag = marc_tag
-      cf.field_content = value
+      cf = cf.to_h
+      value = cf.values[4..43].map(&:to_s).join
+      value.strip! unless control_num == 8
+      cf[:marc_tag] = marc_tag
+      cf[:field_content] = value
       control << cf
     end
     control
@@ -113,25 +114,25 @@ class SierraBib < SierraRecord
   end
 
   def ldr_data_to_string(myldr)
-    return nil if myldr.to_h.empty?
+    return unless myldr.any?
 
     # harcoded values are default/fake values
     # ldr building logic from:
     # https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
     @ldr = [
-      '00000',  # rec_length
+      '00000'.freeze,  # rec_length
       myldr.record_status_code,
       myldr.record_type_code,
       myldr.bib_level_code,
       myldr.control_type_code,
       myldr.char_encoding_scheme_code,
-      '2',      # indicator count
-      '2',      # subf_ct
-      myldr.base_address.rjust(5, '0'),
+      '2'.freeze,      # indicator count
+      '2'.freeze,      # subf_ct
+      myldr.base_address.to_s.rjust(5, '0'),
       myldr.encoding_level_code,
       myldr.descriptive_cat_form_code,
       myldr.multipart_level_code,
-      '4500'    #ldr_end
+      '4500'.freeze    #ldr_end
     ].join
   end
 
@@ -191,14 +192,18 @@ class SierraBib < SierraRecord
     marc.to_mrk
   end
 
-  def marchash
-    mh = {}
-    mh['leader'] = ldr
-    mh['fields'] = []
+  def marc
+    @marc ||= get_marc
+  end
+
+  def get_marc
+    m = MARC::Record.new
+    m.leader = ldr if ldr
+
 
     # add control fields stored in control_field or varfield
     control_fields.each do |cf|
-      mh['fields'] << [cf[:marc_tag], cf[:field_content]]
+      m << MARC::ControlField.new(cf[:marc_tag], cf[:field_content])
     end
 
     # add datafields stored in varfield
@@ -208,14 +213,10 @@ class SierraBib < SierraRecord
       values.
       flatten
     datafields.each do |vf|
-      mh['fields'] << [vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
-                       subfield_arry(vf[:field_content].strip)]
+      m << MARC::DataField.new(vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
+                       *subfield_arry(vf[:field_content].strip))
     end
-    mh
-  end
-
-  def marc
-    @marc ||= MARC::Record.new_from_marchash(marchash)
+    m
   end
 
   # deprecated
@@ -243,7 +244,7 @@ class SierraBib < SierraRecord
   end
 
   # Sets and returns array of records as Sierra[Type] objects.
-  # nil when none exist
+  # empty array when none exist
 
   def items
     @items ||= get_attached(:item, :bib_record_item_record_link)

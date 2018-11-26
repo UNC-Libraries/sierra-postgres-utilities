@@ -18,8 +18,8 @@ RSpec.describe SierraRecord do
     end
 
     context 'record has not been deleted' do
-      it 'returns boolean false' do
-        expect(rec.deleted?).to be false
+      it 'returns falsey' do
+        expect(rec.deleted?).to be_falsey
       end
     end
   end
