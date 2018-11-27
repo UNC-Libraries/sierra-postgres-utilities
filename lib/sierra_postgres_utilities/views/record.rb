@@ -6,17 +6,15 @@ module SierraPostgresUtilities
       views = [
         {
           view: :phrase_entry,
-          view_match: :record_id, obj_match: :record_id, require: :record_id,
-          openstruct: true, entries: :all,
-          sort: [:index_tag, :varfield_type_code, :occurence, :id],
-          require_fail_return: {}, if_empty: {}
+          view_match: :record_id, obj_match: :record_id,
+          entries: :all,
+          sort: [:index_tag, :varfield_type_code, :occurrence, :id]
         },
         {
           view: :varfield,
-          view_match: :record_id, obj_match: :record_id, require: :record_id,
-          openstruct: true, entries: :all,
-          sort: [:marc_tag, :varfield_type_code, :occ_num, :id],
-          require_fail_return: {}, if_empty: {}
+          view_match: :record_id, obj_match: :record_id,
+          entries: :all,
+          sort: [:marc_tag, :varfield_type_code, :occ_num, :id]
         },
       ]
 
@@ -25,24 +23,49 @@ module SierraPostgresUtilities
         access_view(hsh)
       end
 
-
       def record_metadata
         @record_metadata ||= read_record_metadata
       end
 
+      def self.record_metadata_struct
+        @record_metadata_struct ||= SierraDB.viewstruct(:record_metadata)
+      end
+
+      statement = <<~SQL
+        select record_id
+        from sierra_view.phrase_entry phe
+        where (phe.index_tag || phe.index_entry) ~ $1::text
+      SQL
+      SierraDB.prepare_query('search_phrase_entry', statement)
+
+
+      statement = <<~SQL
+        select *
+        from sierra_view.record_metadata rm
+        where id = $1::bigint
+      SQL
+      SierraDB.prepare_query("id_find_record_metadata", statement)
+
+      statement = <<~SQL
+        select *
+        from sierra_view.record_metadata rm
+        where record_type_code = $1::char
+        and record_num = $2::int
+      SQL
+      SierraDB.prepare_query("recnum_find_record_metadata", statement)
+
       # Reads/sets rec data from record_metadata by recnum lookup
       def read_record_metadata
         return {} unless recnum
-        query = <<-SQL
-          select *
-          from sierra_view.record_metadata rm
-          where record_type_code = \'#{rtype}\'
-          and record_num = \'#{recnum}\'
-        SQL
-        SierraDB.make_query(query)
-        return {} if SierraDB.results.entries.empty?
-        OpenStruct.new(
-          SierraDB.results.entries.first.collect { |k,v| [k.to_sym, v] }.to_h
+
+        metadata = SierraDB.conn.exec_prepared(
+          'recnum_find_record_metadata',
+          [rtype, recnum]
+        ).first&.values
+        return {} unless metadata
+
+        SierraPostgresUtilities::Views::Record.record_metadata_struct.new(
+          *metadata
         )
       end
     end

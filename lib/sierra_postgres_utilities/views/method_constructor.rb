@@ -1,9 +1,7 @@
-require 'ostruct'
-
 module SierraPostgresUtilities
   module Views
 
-    # Creates methods to read/cache a given view either in the view's entrirety
+    # Creates methods to read/cache a given view either in the view's entirety
     # or limited to the context of, for example, a specific record.
     module MethodConstructor
 
@@ -13,87 +11,103 @@ module SierraPostgresUtilities
       #   view: name of the view to be read
       #     (i.e. :bib_record for "sierra_view.bib_record")
       #   sort: field or array of fields to sort results by
-      #   openstruct:
-      #     when true (default): return entries as OpenStruct objects
-      #     when false: return entries as hashes
       def read_view(hsh)
+        viewstruct = SierraDB.viewstruct(hsh[:view])
         define_method("read_#{hsh[:view]}") do
           query = <<~SQL
             select *
             from sierra_view.#{hsh[:view]}
           SQL
-          SierraDB.make_query(query)
-          entries = SierraDB.results.entries.sort_by { |x| x[hsh[:sort].to_s] }
-          if hsh[:openstruct]
-            entries.map { |r| OpenStruct.new(r) }
-          else
-            entries
-          end
+          SierraDB.make_query(query).
+                   entries.
+                   sort_by! { |x| x[hsh[:sort].to_s] }
+          SierraDB.results.values.map! { |r| viewstruct.new(*r) }
         end
       end
 
-      # Creates a method that retrieves matching records in a DB view that
-      #
+      # Create a method that returns an enumerator for larger DB views
+      def stream_view(hsh)
+        viewstruct = SierraDB.viewstruct(hsh[:view])
+        sort = hsh[:sort] || [:id]
+        sort.flatten!
+        sort.compact!
+        statement = <<~SQL
+          select * from sierra_view.#{hsh[:view]}
+          order by #{sort.join(', ')}
+          limit 10000
+          offset $1::int
+        SQL
+        SierraDB.prepare_query("stream_#{hsh[:view]}", statement)
+
+        define_method("stream_#{hsh[:view]}") do
+          stream = Enumerator.new do |y|
+            n = 0
+            not_done = true
+            while not_done
+              values = SierraDB.conn.exec_prepared(
+                "stream_#{hsh[:view]}",
+                [n]).values
+              not_done = false if values.empty?
+              values.each { |r| y << viewstruct.new(*r) }
+              n += 10000
+            end
+          end
+        end
+
+        # The enumeration isn't memoized, so we just alias, for example,
+        # SierraDB.stream_bib_record as SierraDB.bib_record
+        define_method(hsh[:view]) do
+          self.send("stream_#{hsh[:view]}")
+        end
+      end
+
+      # Creates a method that retrieves matching records in a DB view.
       # Generally used to scope DB results to entries that match a given
       # object/record_id
+      #
+      # Returns nil unless obj_match returns truthy
       #
       # Arguments:
       #   view: name of the view to be read
       #     (i.e. :bib_record for "sierra_view.bib_record")
       #
       #   view_match: field from the DB view to match on
-      #   obj_match:  object property to match on
+      #   obj_match:  object method to match on
+      #   cast: will cast obj_match to given sql type
+      #     (default is bigint, appropriate for record_id's)
       #
-      #   require: object method which, if not met, will cause
-      #     "require_fail_return" to be returned.
-      #   require_fail_return: value to return if "require" not met
       #
-      #     For example, {require: :record_id,
-      #                   require_fail_return: OpenStruct.new}
-      #     would return an empty OpenStruct unless obj.record_id is truthy
-      #
-      #   if_empty: value to return if no responsive entries found
       #   sort: field or array of fields to sort results by
       #   entries:
       #     when 'all': return all entries in an array
       #     when 'first': return first of any entries
-      #   openstruct:
-      #     when true (default): return entries as OpenStruct objects
-      #     when false: return entries as hashes
 
       def match_view(hsh)
-        define_method("read_#{hsh[:view]}") do
-          return hsh[:require_fail_return] unless self.send(hsh[:require])
-          query = <<~SQL
-            select *
-            from sierra_view.#{hsh[:view]}
-            where #{hsh[:view_match]} = #{self.send(hsh[:obj_match])}
-          SQL
-          SierraDB.make_query(query)
-          return hsh[:if_empty] if SierraDB.results.entries.empty?
+        viewstruct = SierraDB.viewstruct(hsh[:view])
+        cast = hsh[:cast] || :bigint
+        statement = <<~SQL
+          select *
+          from sierra_view.#{hsh[:view]}
+          where #{hsh[:view_match]} = $1::#{cast}
+        SQL
+        sort = [hsh[:sort]].flatten.compact
+        statement << "order by #{sort.join(', ')}" if sort.any?
+        name = self.name
+        SierraDB.prepare_query("#{name}_match_#{hsh[:view]}", statement)
 
-          # make hsh[:sort] an array if it isn't
-          unless hsh[:sort].is_a?(Array)
-            hsh[:sort] = [hsh[:sort]].compact
-          end
-          # sort entries by fields specified in hsh[:sort], if any
-          entries = SierraDB.results.
-                            entries.
-                            sort_by { |e| hsh[:sort].map { |k| e[k.to_s] || '0' } }
+        define_method("read_#{hsh[:view]}") do
+          obj_match = self.send(hsh[:obj_match])
+          return unless obj_match
+          results = SierraDB.conn.exec_prepared(
+            "#{name}_match_#{hsh[:view]}",
+            [obj_match]
+          ).values
 
           case hsh[:entries]
           when :all
-            if hsh[:openstruct]
-              entries.map { |r| OpenStruct.new(r) }
-            else
-              entries
-            end
+            results.map! { |r| viewstruct.new(*r) }
           when :first
-            if hsh[:openstruct]
-              OpenStruct.new(entries.first)
-            else
-              entries.first
-            end
+            viewstruct.new(*results&.first)
           end
         end
       end
@@ -105,7 +119,11 @@ module SierraPostgresUtilities
           self.instance_variable_set("@#{hsh[:view]}", self.send("read_#{hsh[:view]}")))
         end
       end
+
+      # refreshes a cached view that has presumably already had a method defined
+      def refresh_view(name)
+        self.instance_variable_set("@#{name}", self.send("read_#{name}"))
+      end
     end
   end
 end
-

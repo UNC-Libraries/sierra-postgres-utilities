@@ -6,8 +6,8 @@ class SierraItem < SierraRecord
 
   include SierraPostgresUtilities::Views::Item
 
-  @rtype = 'i'
-  @sql_name = 'item'
+  @rtype = 'i'.freeze
+  @sql_name = 'item'.freeze
 
   # These map codes to descriptions/text. They are read live from the
   # postgres DB are populated when needed.
@@ -46,37 +46,37 @@ class SierraItem < SierraRecord
 
   # array of barcode fields, nil when none exist
   def barcodes(value_only: true)
-    varfields('b', value_only: value_only)
+    varfields('b'.freeze, value_only: value_only)
   end
 
   # array of "Library" varfields, nil when none exist
   def varfield_librarys(value_only: true)
-    varfields('f', value_only: value_only)
+    varfields('f'.freeze, value_only: value_only)
   end
 
   # array of Stats fields, nil when none exist
   def stats_fields(value_only: true)
-    varfields('j', value_only: value_only)
+    varfields('j'.freeze, value_only: value_only)
   end
 
   #array of message fields, nil when none exist
   def messages(value_only: true)
-    varfields('m', value_only: value_only)
+    varfields('m'.freeze, value_only: value_only)
   end
 
   # array of volume fields, nil when none exist
   def volumes(value_only: true)
-    varfields('v', value_only: value_only)
+    varfields('v'.freeze, value_only: value_only)
   end
 
   # array of internal notes fields, nil when none exist
   def internal_notes(value_only: true)
-    varfields('x', value_only: value_only)
+    varfields('x'.freeze, value_only: value_only)
   end
 
   # array of public_notes fields, nil when none exist
   def public_notes(value_only: true)
-    varfields('z', value_only: value_only)
+    varfields('z'.freeze, value_only: value_only)
   end
 
   # array of call number fields, nil when none exist
@@ -90,7 +90,7 @@ class SierraItem < SierraRecord
   #   :field_content=>"|aPR6056.A82 S6"
   # }]
   def callnos(value_only: true, keep_delimiters: false)
-    data = varfields('c', value_only: value_only)
+    data = varfields('c'.freeze, value_only: value_only)
     if value_only && !keep_delimiters
       data&.map { |x| x.gsub(/\|./, '').strip }
     else
@@ -103,7 +103,7 @@ class SierraItem < SierraRecord
   end
 
   def itype_code
-    item_record[:itype_code_num]
+    item_record[:itype_code_num].to_s
   end
 
   def location_code
@@ -119,12 +119,16 @@ class SierraItem < SierraRecord
   end
 
   def suppressed?
-    item_record[:is_suppressed] == 't'
+    item_record[:is_suppressed]
+  end
+
+  def checked_out?
+    checkout.any?
   end
 
   def due_date
-    return nil unless checkout
-    strip_date(date: checkout.due_gmt)
+    return unless checked_out?
+    checkout.due_gmt
   end
 
   def itype_description
@@ -144,7 +148,7 @@ class SierraItem < SierraRecord
 
   def self.load_itype_descs
     @@itype_code_map = SierraDB.itype_property_myuser.
-                                map { |x| [x.code, x.name] }.
+                                map { |x| [x.code.to_s, x.name] }.
                                 sort_by { |x| x.first.to_i }.
                                 to_h
   end
@@ -164,7 +168,7 @@ class SierraItem < SierraRecord
   end
 
   # set and returns array of records as Sierra[Type] objects.
-  # nil when none exist
+  # empty array when none exist
   #
 
   def bibs
@@ -176,6 +180,6 @@ class SierraItem < SierraRecord
   end
 
   def is_oca?
-    stats_fields&.any? { |x| x.match(/OCA electronic (?:book|journal)/i) }
+    stats_fields.any? { |x| x.match(/OCA electronic (?:book|journal)/i) }
   end
 end

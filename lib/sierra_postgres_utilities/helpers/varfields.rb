@@ -49,8 +49,8 @@ module SierraPostgresUtilities
       end
 
       def add_explicit_sf_a(field_content)
-        unless field_content[0] == '|'
-          field_content = field_content.dup.insert(0, '|a')
+        unless field_content.chr == '|'
+          field_content = field_content.clone.insert(0, '|a')
         end
         field_content
       end

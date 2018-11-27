@@ -4,6 +4,10 @@ def set_attr(obj, attr, value)
   obj.instance_variable_set("@#{attr}", value)
 end
 
+def mock_struct(hsh = {zzz: nil})
+  Struct.new(*hsh.keys).new(*hsh.values)
+end
+
 
 RSpec.describe SierraBib do
   let(:bib001) { SierraBib.new('b1191683a') }
@@ -20,7 +24,7 @@ RSpec.describe SierraBib do
     end
 
     it 'sets bib identifier' do
-      expect(sb1.record_id).to eq('420907986691')
+      expect(sb1.record_id).to eq(420907986691)
     end
 
     sb2 = SierraBib.new('b00000000547475')
@@ -36,7 +40,7 @@ RSpec.describe SierraBib do
 
     sb00 = SierraBib.new('b6780003')
     it 'sets bib identifier if bib is deleted' do
-      expect(sb00.record_id).to eq('420913575011')
+      expect(sb00.record_id).to eq(420913575011)
     end
 
     it 'warn if bib deleted' do
@@ -138,41 +142,42 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     let(:cfs) { bib.control_fields }
 
     it 'includes control_fields stored in sierra_view.varfield' do
-      expect(cfs.select { |f| f.marc_tag == '001' }.empty?).to be false
+      expect(cfs.select { |f| f[:marc_tag] == '001' }.empty?).to be false
     end
 
     it 'includes 006/007/008 control_fields from sierra_view.control_field' do
-      expect(cfs.select { |f| f.marc_tag == '008' }.empty?).to be false
+      expect(cfs.select { |f| f[:marc_tag] == '008' }.empty?).to be false
     end
 
     it 'creates a field_content string from individual character positions' do
-      expect(cfs.select { |f| f.marc_tag == '008' }.first.field_content).
+      expect(cfs.select { |f| f[:marc_tag] == '008' }.first[:field_content]).
         to eq('990707s1999    dcu          f000 0 eng d')
     end
 
-    it 'does not strip 008s' do
+    it 'does not rstrip 008s' do
       set_attr(
         bib,
         :control_field,
-        [OpenStruct.new(
-          {:id=>"9805...", :record_id=>"420910055107", :varfield_type_code=>"y",
-          :control_num=>"8", :p00=>"9", :p01=>"9", :p02=>"0", :p03=>"7",
+        [mock_struct(
+          :id=>1, :record_id=>420910055107, :varfield_type_code=>"y",
+          :control_num=>8, :p00=>"9", :p01=>"9", :p02=>"0", :p03=>"7",
           :p04=>"0", :p05=>"7", :p06=>"s", :p07=>"1", :p08=>"9", :p09=>"9",
           :p10=>"9", :p11=>" ", :p12=>" ", :p13=>" ", :p14=>" ", :p15=>"d",
           :p16=>"c", :p17=>"u", :p18=>" ", :p19=>" ", :p20=>" ", :p21=>" ",
           :p22=>" ", :p23=>" ", :p24=>" ", :p25=>" ", :p26=>" ", :p27=>" ",
           :p28=>"f", :p29=>"0", :p30=>"0", :p31=>"0", :p32=>" ", :p33=>"0",
           :p34=>" ", :p35=>"e", :p36=>"n", :p37=>" ", :p38=>" ", :p39=>" ",
-          :p40=>"c", :p41=>"a", :p42=>"m", :p43=>"7", :occ_num=>"5",
-          :remainder=>"a "}
+          :p40=>"c", :p41=>"a", :p42=>"m", :p43=>"7", :occ_num=>5,
+          :remainder=>"a "
         )]
       )
-      expect(cfs.select { |f| f.marc_tag == '008' }.first.field_content).
+      expect(cfs.select { |f| f[:marc_tag] == '008' }.first[:field_content]).
         to eq('990707s1999    dcu          f000 0 en   ')
     end
 
-    it 'strips 006s/007s' do
-      expect(cfs.select { |f| f.marc_tag == '006' }.first.field_content).
+    # note that TRLN-Discovery-ETL depends on 006/007s being rstripped
+    it 'rstrips 006s/007s' do
+      expect(cfs.select { |f| f[:marc_tag] == '006' }.first[:field_content]).
         to eq('m        u f')
     end
   end
@@ -271,7 +276,7 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
     }
 
     describe '#marc' do
-      it 'returns a ruby-marc object' do
+      it 'returns a MARC::Record object' do
         expect(bib.marc).to be_a(MARC::Record)
       end
 
@@ -285,16 +290,6 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
         correct_mrc.leader[0..4] = '00000'
         correct_mrc.leader[12..16] = '00000'
         expect(bib.marc.leader).to eq(correct_mrc.leader)
-      end
-    end
-
-    describe '#marchash' do
-      it 'returns a marchash' do
-        expect(bib.marchash.keys).to eq(["leader", "fields"])
-      end
-
-      it 'contains correct marc fields' do
-        expect(bib.marchash['fields']).to eq(correct_mrc.to_marchash['fields'])
       end
     end
   end

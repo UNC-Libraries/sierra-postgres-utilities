@@ -12,9 +12,10 @@ end
 
 module SierraDB
 
-  # extension allows almost all views to be read with SierraDB.view_name
+  # extended (in views.rb) by
+  #   SierraPostgresUtilities::Views::General
+  # to allow almost all views to be read with SierraDB.view_name
   # e.g. SierraDB.branch_myuser
-  extend SierraPostgresUtilities::Views::General
 
   def self.conn(creds: 'prod')
     @conn ||= make_connection(creds: creds)
@@ -49,6 +50,19 @@ module SierraDB
   # or as a file containing such a string
   def self.make_query(query)
     run_query(query)
+  end
+
+  def self.prepare_query(name, query)
+    conn.prepare(name, query)
+    register_prepared_query(name, query)
+  end
+
+  def self.register_prepared_query(name, query)
+    prepared_queries[name] = query
+  end
+
+  def self.prepared_queries
+    @prepared_queries ||= {}
   end
 
   def self.write_results(outfile, results: self.results, headers: self.headers,
@@ -117,7 +131,27 @@ module SierraDB
         end
       end
     end
-    PG::Connection.new(@cred)
+    c = PG::Connection.new(@cred)
+
+    # load any already prepared queries
+    prepared_queries.each do |name, statement|
+      c.prepare(name, statement)
+    end
+
+    # set type mapping
+    set_type_map(c)
+  end
+
+  def self.set_type_map(conn)
+  conn.type_map_for_results = PG::BasicTypeMapForResults.new(conn)
+
+  # add text coders for any oids without defined cast, e.g. oid 1700
+  # https://stackoverflow.com/questions/34795078/pg-gem-warning-no-type-cast-defined-for-type-numeric
+  text_coder = conn.type_map_for_results.coders.find { |c| c.name == 'text' }
+  new_coder = text_coder.dup.tap { |c| c.oid = 1700 }
+  conn.type_map_for_results.add_coder(new_coder)
+
+  conn
   end
 
   def self.write_tsv(outfile, results, headers)
@@ -186,4 +220,29 @@ module SierraDB
     @results = conn.exec(@query)
   end
   private_class_method :run_query
+
+  def self.viewstruct(view_name)
+    query = <<~SQL
+      select column_name
+      from information_schema.columns
+      where table_schema = 'sierra_view' and table_name = '#{view_name}'
+    SQL
+    SierraDB.make_query(query)
+    fields = SierraDB.results.values.flatten.map { |s| s.to_sym }
+    Struct.new(*fields)
+  end
+
+  def self.view_info(view_name)
+    query_name = 'read_view_info'
+    unless prepared_queries.has_key?(query_name)
+      statement = <<~SQL
+        select column_name, data_type
+        from information_schema.columns
+        where table_schema = 'sierra_view' and table_name = $1::text
+      SQL
+      self.prepare_query(query_name, statement)
+    end
+    SierraDB.conn.exec_prepared(query_name, [view_name]).
+                  values.to_h
+  end
 end

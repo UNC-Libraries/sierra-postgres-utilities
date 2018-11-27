@@ -27,11 +27,11 @@ class SierraOrder < SierraRecord
   end
 
   def received_date
-    strip_date(date: order_record[:received_date_gmt])
+    order_record[:received_date_gmt]
   end
 
   def cat_date
-    strip_date(date: order_record[:catalog_date_gmt])
+    order_record[:catalog_date_gmt]
   end
 
   def location
@@ -43,7 +43,7 @@ class SierraOrder < SierraRecord
   end
 
   # set and returns array of records as Sierra[Type] objects.
-  # nil when none exist
+  # empty array when none exist
   #
 
   def bibs
@@ -52,6 +52,6 @@ class SierraOrder < SierraRecord
 
   # orders are attached to at most one bib
   def bib
-    bibs&.first
+    bibs.first
   end
 end

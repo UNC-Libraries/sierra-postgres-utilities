@@ -19,7 +19,7 @@ class SierraHoldings < SierraRecord
   end
 
   # set and returns array of records as Sierra[Type] objects.
-  # nil when none exist
+  # empty array when none exist
   #
 
   def bibs
@@ -28,7 +28,7 @@ class SierraHoldings < SierraRecord
 
   # holdings are attached to at most one bib
   def bib
-    bibs&.first
+    bibs.first
   end
 
   def items

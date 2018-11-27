@@ -21,14 +21,14 @@ bib.deleted?        #=> false
 bib.mat_type        #=> "a"
 
 # Get data from sierra_view.bib_record as a hash
-bib.bib_record      #=> {:id=>"420916051894",
-                    #    :record_id=>"420916051894",
+bib.bib_record      #=> {:id=>420916051894,
+                    #    :record_id=>420916051894,
                     #    :language_code=>"eng",
                     #    :bcode1=>"m",
                     #    :bcode2=>"a",
                     #    :bcode3=>"-",
                     #    ....
-                    #    :is_suppressed=>"f"}
+                    #    :is_suppressed=>false}
 
 # Get bib as a ruby-marc object (https://github.com/ruby-marc/ruby-marc/)
 bib.marc

@@ -6,7 +6,7 @@ class SierraItem
   end
 
   def set_checkout(hsh)
-    @checkout = OpenStruct.new(hsh)
+    @checkout = Struct.new(*hsh.keys).new(*hsh.values)
   end
 end
 
@@ -23,13 +23,13 @@ RSpec.describe SierraItem do
 
   describe '#barcodes' do
 
+    it 'is empty when no "b" varfields' do
+      expect(item_no_vf.barcodes.empty?).to be true
+    end
+
     context 'by default (when value_only is explicitly true)' do
       it 'returns barcodes as array of strings' do
         expect(item.barcodes).to eq(['00001254305'])
-      end
-
-      it 'is nil when no such "b" varfields' do
-        expect(item_no_vf.barcodes).to be_nil
       end
     end
 
@@ -38,10 +38,6 @@ RSpec.describe SierraItem do
         expect(
           item.barcodes(value_only: false).first[:field_content]
         ).to eq('00001254305')
-      end
-
-      it 'is nil when no "b" varfields' do
-        expect(item_no_vf.barcodes(value_only: false)).to be_nil
       end
     end
   end
@@ -80,7 +76,9 @@ RSpec.describe SierraItem do
   end
 
   describe '#itype_code' do
-    it 'returns itype code' do
+
+    # note that item_record.itype_code_num is a number
+    it 'returns itype code as a string' do
       expect(item.itype_code).to eq('0')
     end
   end
@@ -98,8 +96,8 @@ RSpec.describe SierraItem do
   end
 
   describe '#copy_num' do
-    it 'returns copy num' do
-      expect(item.copy_num).to eq('1')
+    it 'returns copy num as a number' do
+      expect(item.copy_num).to eq(1)
     end
   end
 
@@ -132,7 +130,7 @@ RSpec.describe SierraItem do
   describe '#due_date' do
     it 'returns due date as DateTime object' do
       checked_item = SierraItem.new('i2661010a')
-      checked_item.set_checkout(due_gmt: '2018-08-08 04:00:00-04')
+      checked_item.set_checkout(due_gmt: Time.new(2018,8, 8, 4))
       expect(checked_item.due_date.is_a?(Time)).to be true
     end
   end
