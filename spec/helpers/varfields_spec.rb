@@ -121,10 +121,15 @@ RSpec.describe SierraPostgresUtilities::Helpers::Varfields do
       end
     end
 
-    it 'returns empty array if field_content is literal "|"' do
-      expect(dummy.subfield_arry('|')).to eq([])
+    context 'when subfield lacks subfield code' do
+      it 'discards that subfield' do
+        expect(dummy.subfield_arry('|adata||balso data')).
+          to eq([['a', 'data'], ['b', 'also data']])
+      end
+
+      it 'returns empty array if no subfields left' do
+        expect(dummy.subfield_arry('|')).to eq([])
+      end
     end
-
-
   end
 end
