@@ -87,13 +87,14 @@ module SierraPostgresUtilities
       def subfield_arry(field_content, implicit_sfa: true)
         field_content = add_explicit_sf_a(field_content) if implicit_sfa
         arry = field_content.split('|')
+
+        # delete anything prior to the first subfield delimiter (which often
+        #   but not always means deleting an empty string), then delete
+        #   any/other empty strings
         arry.shift
-        # if field_content is literally "|" (no subfield code), arry will be empty
-        # array; doing arry[1..-1].map... (without shifting) would throw an error
-        # when arry is empty.
+        arry.delete(''.freeze)
         arry.map { |x| [x[0], x[1..-1]] }
       end
-
     end
   end
 end

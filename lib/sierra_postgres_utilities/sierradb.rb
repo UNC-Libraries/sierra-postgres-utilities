@@ -186,7 +186,7 @@ module SierraDB
       worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
     end
     # save and close excel
-    outfilepath = File.join(Dir.pwd, outfile).gsub(/\//, '\\\\')
+    outfilepath = outfile.gsub(/\//, '\\\\')
     File.delete(outfilepath) if File.exist?(outfilepath)
     workbook.saveas(outfilepath)
     excel.quit
