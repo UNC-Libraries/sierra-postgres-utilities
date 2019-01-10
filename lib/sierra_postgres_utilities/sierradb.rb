@@ -17,7 +17,11 @@ module SierraDB
   # to allow almost all views to be read with SierraDB.view_name
   # e.g. SierraDB.branch_myuser
 
-  def self.conn(creds: 'prod')
+  def self.initial_creds(creds = nil)
+    @initial_creds ||= creds
+  end
+
+  def self.conn(creds: initial_creds || 'prod')
     @conn ||= make_connection(creds: creds)
   end
 
