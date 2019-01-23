@@ -165,7 +165,11 @@ class SierraRecord
   end
 
   def deleted?
-    true if record_metadata.deletion_date_gmt
+    true if record_metadata['deletion_date_gmt']
+  end
+
+  def invalid?
+    true if record_id.nil?
   end
 
   # Returns rec creation date

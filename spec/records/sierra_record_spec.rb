@@ -8,6 +8,7 @@ end
 RSpec.describe SierraRecord do
   let(:rec) { SierraRecord.new(rnum: 'b1841152a', rtype: 'b') }
   let(:del_rec) { SierraRecord.new(rnum: 'b6780003a', rtype: 'b') }
+  let(:invalid_rec) { SierraRecord.new(rnum: 'b1111111111a', rtype: 'b')}
 
   describe '#deleted?' do
 
@@ -22,6 +23,35 @@ RSpec.describe SierraRecord do
         expect(rec.deleted?).to be_falsey
       end
     end
+
+    context 'record is invalid' do
+      it 'returns falsey' do
+        expect(invalid_rec.deleted?).to be_falsey
+      end
+    end
+  end
+
+  describe '#invalid?' do
+
+    context 'record never existed' do
+      it 'returns boolean true' do
+        expect(invalid_rec.invalid?).to be true
+      end
+    end
+
+    context 'undeleted record exists' do
+      it 'returns falsey' do
+        expect(rec.invalid?).to be_falsey
+      end
+    end
+
+    context 'deleted record exists' do
+      it 'returns falsey' do
+        expect(del_rec.invalid?).to be_falsey
+      end
+    end
+
+
   end
 
   describe '.vf_codes' do

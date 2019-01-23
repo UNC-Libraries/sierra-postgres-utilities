@@ -8,7 +8,15 @@ require_relative '../ext/marc/record'
 require_relative '../ext/marc/datafield'
 require_relative '../ext/marc/controlfield'
 
+
+
 require_relative 'sierra_postgres_utilities/sierradb'
+# As it loads, sierra-postgres-utilities connects to the DB to prepare some
+# queries, etc. Defining SIERRA_INIT_CREDS before loading sierra-postgres-utilities
+# allows that initial connection to use the specified credentials
+creds = ENV['SIERRA_INIT_CREDS'] || 'prod'
+SierraDB.initial_creds(creds)
+
 require_relative 'sierra_postgres_utilities/views'
 require_relative 'sierra_postgres_utilities/helpers'
 require_relative 'sierra_postgres_utilities/records'
