@@ -97,7 +97,12 @@ module SierraDB
   end
 
   def self.emails
-    @emails ||= YAML.load_file(File.join(base_dir, '/email.secret'))
+    @emails ||=
+      begin
+        YAML.load_file('email.secret')
+      rescue Errno::ENOENT
+        YAML.load_file(File.join(base_dir, '/email.secret'))
+      end
   end
 
   def self.yield_email(index = nil)
@@ -112,24 +117,26 @@ module SierraDB
   # Connects to SierraDB using creds from specified YAML file or given hash.
   #
   # Possible specified credentials:
-  # 'prod' : uses sierra_prod.secret in base directory # creds for prod db
-  # 'test' : uses sierra_test.secret in base directory # creds for test db
-  # [filename] : reads secrets from file specified. First looks for file in
-  #            secrets dir, and looks for file in current dir if that fails
+  # 'prod' : uses sierra_prod.secret in pwd or base directory; creds for prod db
+  # 'test' : uses sierra_test.secret in pwd or base directory; creds for test db
+  # [filename] : reads secrets from file specified. First looks in pwd, then
+  #            looks in base directory
   # [somehash]: accepts a hash containing the credentials
   def self.make_connection(creds:)
     if creds == 'prod'
-      @cred = YAML.load_file(File.join(base_dir, '/sierra_prod.secret'))
+      creds = 'sierra_prod.secret'
     elsif creds == 'test'
-      @cred = YAML.load_file(File.join(base_dir, '/sierra_test.secret'))
-    elsif creds.is_a?(Hash)
+      creds = 'sierra_test.secret'
+    end
+
+    if creds.is_a?(Hash)
       @cred = creds
     else
       begin
-        @cred = YAML.load_file(File.join(base_dir, creds))
+        @cred = YAML.load_file(creds)
       rescue Errno::ENOENT
         begin
-          @cred = YAML.load_file(creds)
+          @cred = YAML.load_file(File.join(base_dir, creds))
         rescue Errno::ENOENT
           raise('Connection credentials invalid or not found.')
         end
@@ -197,7 +204,12 @@ module SierraDB
   end
 
   def self.smtp
-    @smtp ||= YAML.load_file(File.join(base_dir, '/smtp.secret'))
+    @smtp ||=
+      begin
+        YAML.load_file('smtp.secret')
+      rescue Errno::ENOENT
+        YAML.load_file(File.join(base_dir, '/smtp.secret'))
+      end
   end
 
   def self.send_mail(outfile, mail_details, remove_file: false)

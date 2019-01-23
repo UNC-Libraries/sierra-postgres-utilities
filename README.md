@@ -11,7 +11,7 @@ __NOTE: Some sites may have iii setups that store different data in different pl
 ### Interact with bib (and other) records
 
 ```ruby
-require_relative 'lib/sierra_postgres_utilities.rb'
+require 'sierra_postgres_utilities'
 
 bnum = 'b9256886a'
 bib = SierraBib.new(bnum)
@@ -105,16 +105,14 @@ return any of ```bib```'s entries in those two views.
 
 ## SETUP
 
-* Clone or download a copy.
-* ```gem install mail```
-* ```gem install pg```
-* ```gem install marc```
+* git clone https://github.com/UNC-Libraries/sierra-postgres-utilities
+* cd sierra-postgres-utilities
+* bundle install
+* bundle exec rake install
 * supply the Sierra postgres credentials per the below
 * optionally supply smtp server address
 
 ### Credentials
-
-#### Stored in file
 
 Create a yaml file in the base directory like so:
 
@@ -126,20 +124,33 @@ user: myusername
 password: mypassword
 ```
 
-If you name the file ```sierra_prod.secret``` it will be the default connection.
+Store the creds in a file ```sierra_prod.secret``` in the
+current working directory or the base directory of sierra_postgres_utilities.
+Creds from this file will be used as the default connection.
 
-Use some other file with ```SierraDB.connect_as(creds: filename)```
+Alternately, specify a credential file location as an environment variable, e.g.:
 
-Set a test server connection in a file named ```sierra_test.secret```. Use it with ```SierraDB.connect_as(creds: 'test')```
+```bash
+SIERRA_INIT_CREDS=my/path/file.yaml irb
+```
 
-#### Passed as argument
+or set the file location in ruby:
 
-Pass the connection info (host, port, dbname, user, password) in a hash: ```SierraDB.connect_as(creds: cred_hash)```
+```ruby
+# File location
+ENV['SIERRA_INIT_CREDS'] = 'my/path/file.yaml'
+require 'sierra_postgres_utilities'
+```
+
+Once connected to the Sierra DB, you can close the connection and reconnect
+under alternate creds using:
+-  ```SierraDB.connect_as(creds: filename)```, or
+-  ```SierraDB.connect_as(creds: cred_hash)```
 
 ### SMTP connection / email address storage
 
 Define an smtp connection (that does not require authentication) if you'll use this to send emails.
-Create ```smtp.secret``` in the base directory:
+Create ```smtp.secret``` in the working directory:
 
 ```yaml
 address: smtp.example.com
@@ -159,17 +170,4 @@ And then in ruby:
 c.yield_email                         # => user@example.com
 c.yield_email(index: 'default_email') # => user@example.com
 c.yield_email(index: 'other_email')   # => other_user@example.com
-```
-
-## Loading into other scripts
-
-This isn't a gem. It isn't getting installed and can have varying paths, so we've been keeping the sierra-postgres-utilities folder and the folders for scripts dependent on sierra-postgres-utilities in the same directory, so:
-
-* .../code/sierra-postgres-utilities/.git
-* .../code/dependent_repo/dependent_thing.rb
-
-and then in dependent_thing.rb doing:
-
-```ruby
-require_relative '../sierra-postgres-utilities/lib/sierra_postgres_utilities.rb'
 ```
