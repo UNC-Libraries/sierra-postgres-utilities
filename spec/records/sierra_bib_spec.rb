@@ -154,6 +154,11 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
         to eq('990707s1999    dcu          f000 0 eng d')
     end
 
+    # For control fields, Sierra database stores a space for what should be a
+    # null position. (For example, p39 is meaningless/invalid for an 006, but
+    # the database will has p39 of ' ' rather than null.)
+    # 006s/008s are fixed length and we can assume any trailing spaces inside
+    # that length are part of the field
     it 'does not rstrip 008s' do
       set_attr(
         bib,
@@ -175,10 +180,34 @@ Shouldn't be a problem, so leaving it to fail in a nasty way for now.
         to eq('990707s1999    dcu          f000 0 en   ')
     end
 
-    # note that TRLN-Discovery-ETL depends on 006/007s being rstripped
-    it 'rstrips 006s/007s' do
+    it 'does not rstrip 006s' do
       expect(cfs.select { |f| f[:marc_tag] == '006' }.first[:field_content]).
-        to eq('m        u f')
+        to eq('m        u f      ')
+    end
+
+    # 007s are variable length. We cannot trivially identify which trailing
+    # spaces are part of the actual 007 vs which are just part of the sierra db
+    # record, so we don't try to determine how many trailing spaces an 007 ought
+    # to have.
+    it 'rstrips 007s' do
+      set_attr(
+        bib,
+        :control_field,
+        [mock_struct(
+          :id=>1, :record_id=>420910055107, :varfield_type_code=>"y",
+          :control_num=>7, :p00=>"9", :p01=>"9", :p02=>"0", :p03=>"7",
+          :p04=>"0", :p05=>"7", :p06=>"s", :p07=>"1", :p08=>"9", :p09=>"9",
+          :p10=>"9", :p11=>" ", :p12=>" ", :p13=>" ", :p14=>" ", :p15=>"d",
+          :p16=>"c", :p17=>"u", :p18=>" ", :p19=>" ", :p20=>" ", :p21=>" ",
+          :p22=>" ", :p23=>" ", :p24=>" ", :p25=>" ", :p26=>" ", :p27=>" ",
+          :p28=>" ", :p29=>" ", :p30=>" ", :p31=>" ", :p32=>" ", :p33=>" ",
+          :p34=>" ", :p35=>" ", :p36=>" ", :p37=>" ", :p38=>" ", :p39=>" ",
+          :p40=>" ", :p41=>" ", :p42=>" ", :p43=>" ", :occ_num=>5,
+          :remainder=>"a "
+        )]
+      )
+      expect(cfs.select { |f| f[:marc_tag] == '007' }.first[:field_content]).
+      to eq('990707s1999    dcu')
     end
   end
 
