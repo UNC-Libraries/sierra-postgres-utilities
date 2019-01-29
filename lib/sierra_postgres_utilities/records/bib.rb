@@ -83,8 +83,10 @@ class SierraBib < SierraRecord
       next unless control_num.between?(6, 8)
       marc_tag = "00#{control_num}"
       cf = cf.to_h
+      # specs contain stripping logic
       value = cf.values[4..43].map(&:to_s).join
-      value.strip! unless control_num == 8
+      value = value[0..17] if control_num == 6
+      value.rstrip! if control_num == 7
       cf[:marc_tag] = marc_tag
       cf[:field_content] = value
       control << cf
