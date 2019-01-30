@@ -2,13 +2,8 @@ require 'csv'
 require 'yaml'
 require 'mail'
 require 'pg'
-begin
-  require 'win32ole'
-rescue LoadError
-  puts "\n\nwin32ole not found. writing output to .xlsx disabled. win32ole is
-    probably not available on linux/mac but should be part of the standard
-    library on Windows installs of Ruby"
-end
+# 'win32ole' conditionally loaded
+
 
 module SierraDB
 
@@ -179,8 +174,13 @@ module SierraDB
   end
 
   def self.write_xlsx(outfile, results, headers)
-    unless defined?(WIN32OLE)
-      raise 'WIN32OLE not loaded; cannot write to xlsx file'
+    begin
+      require 'win32ole'
+    rescue LoadError
+      puts "win32ole not found. writing output to .xlsx disabled. win32ole is
+        probably not available on linux/mac but should be part of the standard
+        library on Windows installs of Ruby"
+      raise
     end
     excel = WIN32OLE.new('Excel.Application')
     excel.visible = false
