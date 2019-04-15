@@ -3,6 +3,7 @@ require_relative '../sierradb'
 
 class SierraRecord
   attr_reader :rnum, :given_rnum, :deleted, :warnings
+  attr_accessor :marc
 
   include SierraPostgresUtilities::Views::Record
   include SierraPostgresUtilities::Helpers::Varfields
@@ -160,6 +161,103 @@ class SierraRecord
     @vf_codes = SierraDB.results.values.to_h
   end
 
+
+  # Returns all of a record's control fields
+  def control_fields
+    @control_fields ||= compile_control_fields
+  end
+
+  # Returns all MARC control fields as array of sql result hashes
+  # Gathers 006/007/008 stored in control_field and any 00X in varfield)
+  # Fields in control_field are given proper marc_tag and field_content entries
+  # e.g.
+  # [{:id=>"63824254", ... :marc_tag=>"001", ... :field_content=>"830511"},
+  #  {:id=>"63824283", ... :marc_tag=>"003", ... :field_content=>"OCoLC"},
+  #  {:id=>"90120881", ... :control_num=>"8", :p00=>"7", ...:marc_tag=>"008",
+  #     :field_content=>"740314c19719999oncqr4p  s   f0   a0eng d"}]
+  def compile_control_fields
+    return unless record_id
+    control = marc_varfields.
+                select { |tag, _| tag =~ /^00/ }.
+                values.flatten
+    control_field.each do |cf|
+      control_num = cf.control_num
+      next unless control_num.between?(6, 8)
+      marc_tag = "00#{control_num}"
+      cf = cf.to_h
+      # specs contain stripping logic
+      value = cf.values[4..43].map(&:to_s).join
+      value = value[0..17] if control_num == 6
+      value.rstrip! if control_num == 7
+      cf[:marc_tag] = marc_tag
+      cf[:field_content] = value
+      control << cf
+    end
+    control
+  end
+
+  # returns leader as string
+  # nil when no leader field
+  # No bibs had >1 leader in oct 2018. We make an assumption it's not
+  # possible.
+  def ldr
+    @ldr ||= ldr_data_to_string(leader_field)
+  end
+
+  def mrk
+    marc.to_mrk
+  end
+
+  def marc
+    @marc ||= get_marc
+  end
+
+  def get_marc
+    m = MARC::Record.new
+    m.leader = ldr if ldr
+
+
+    # add control fields stored in control_field or varfield
+    control_fields.each do |cf|
+      m << MARC::ControlField.new(cf[:marc_tag], cf[:field_content])
+    end
+
+    # add datafields stored in varfield
+    datafields =
+      marc_varfields.
+      reject { |tag, _| tag =~ /^00/ }.
+      values.
+      flatten
+    datafields.each do |vf|
+      m << MARC::DataField.new(vf[:marc_tag], vf[:marc_ind1], vf[:marc_ind2],
+                       *subfield_arry(vf[:field_content].strip))
+    end
+    m
+  end
+
+  def ldr_data_to_string(myldr)
+    return unless myldr.any?
+
+    # harcoded values are default/fake values
+    # ldr building logic from:
+    # https://github.com/trln/extract_marcxml_for_argot_unc/blob/master/marc_for_argot.pl
+    @ldr = [
+      '00000'.freeze,  # rec_length
+      myldr.record_status_code,
+      myldr.record_type_code,
+      myldr.bib_level_code,
+      myldr.control_type_code,
+      myldr.char_encoding_scheme_code,
+      '2'.freeze,      # indicator count
+      '2'.freeze,      # subf_ct
+      myldr.base_address.to_s.rjust(5, '0'),
+      myldr.encoding_level_code,
+      myldr.descriptive_cat_form_code,
+      myldr.multipart_level_code,
+      '4500'.freeze    #ldr_end
+    ].join
+  end
+
   def vf_codes
     self.class.vf_codes(rtype: rtype)
   end
@@ -185,7 +283,8 @@ class SierraRecord
   # Returns array of attached Sierra[name] objects
   # empty array when none exist
   def get_attached(name, view)
-    send(view).map { |r| SierraRecord.from_id(r.send("#{name}_record_id")) }
+    links = [send(view)].flatten
+    links.map { |r| SierraRecord.from_id(r.send("#{name}_record_id")) }
   end
 
   def self.from_id(id)
@@ -233,9 +332,8 @@ class SierraRecord
     recs = SierraDB.conn.exec_prepared('search_phrase_entry', [regexp]).
                          column_values(0).
                          map { |id| SierraRecord.from_id(id)}
-    return recs if recs.length > 1
     return if recs.empty?
-    recs.first
+    recs
   end
 
   def self.from_create_list(listnum)

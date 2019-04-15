@@ -34,6 +34,17 @@ module SierraPostgresUtilities
           view_match: :id, obj_match: :record_id,
           entries: :first
         },
+        {
+          view: :control_field,
+          view_match: :record_id, obj_match: :record_id,
+          entries: :all,
+          sort: %i[varfield_type_code occ_num id]
+        },
+        {
+          view: :leader_field,
+          view_match: :record_id, obj_match: :record_id,
+          entries: :first
+        },
       ]
 
       views.each do |hsh|

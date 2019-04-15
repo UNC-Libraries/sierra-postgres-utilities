@@ -15,6 +15,7 @@ class SierraHoldings < SierraRecord
   end
 
   def suppressed?
+    # scode 2 == n or scode4 == n
     holding_record[:scode2] == 'n'
   end
 
