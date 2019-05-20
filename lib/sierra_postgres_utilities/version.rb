@@ -1,3 +1,3 @@
-module SierraPostgresUtilities
-  VERSION = '0.2.3'.freeze
+module Sierra
+  VERSION = '0.3.0'.freeze
 end

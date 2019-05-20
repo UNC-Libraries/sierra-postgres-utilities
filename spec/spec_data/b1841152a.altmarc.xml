@@ -1,0 +1,34 @@
+<record>
+  <leader>00469cam  2200169Ia 4500</leader>
+  <controlfield tag='001'>b1841152</controlfield>
+  <controlfield tag='003'>NcU</controlfield>
+  <controlfield tag='005'>19820807000000.0</controlfield>
+  <controlfield tag='008'>820807s1981    enk           000 1 eng d</controlfield>
+  <datafield tag='020' ind1=' ' ind2=' '>
+    <subfield code='a'>0094643407</subfield>
+  </datafield>
+  <datafield tag='035' ind1=' ' ind2=' '>
+    <subfield code='a'>(OCoLC)8671134</subfield>
+  </datafield>
+  <datafield tag='040' ind1=' ' ind2=' '>
+    <subfield code='a'>NOC</subfield>
+    <subfield code='c'>NOC</subfield>
+  </datafield>
+  <datafield tag='100' ind1='1' ind2=' '>
+    <subfield code='a'>Fassnidge, Virginia.</subfield>
+  </datafield>
+  <datafield tag='245' ind1='1' ind2='0'>
+    <subfield code='a'>Something else :</subfield>
+    <subfield code='b'>a novel /</subfield>
+    <subfield code='c'>Virginia Fassnidge.</subfield>
+  </datafield>
+  <datafield tag='260' ind1=' ' ind2=' '>
+    <subfield code='a'>London :</subfield>
+    <subfield code='b'>Constable,</subfield>
+    <subfield code='c'>1981.</subfield>
+  </datafield>
+  <datafield tag='300' ind1=' ' ind2=' '>
+    <subfield code='a'>152 p. ;</subfield>
+    <subfield code='c'>23 cm.</subfield>
+  </datafield>
+</record>
