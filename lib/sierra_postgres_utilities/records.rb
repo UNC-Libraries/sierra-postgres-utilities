@@ -1,7 +1,0 @@
-require_relative 'records/record'
-require_relative 'records/authority'
-require_relative 'records/bib'
-require_relative 'records/item'
-require_relative 'records/holdings'
-require_relative 'records/order'
-require_relative 'records/patron'
