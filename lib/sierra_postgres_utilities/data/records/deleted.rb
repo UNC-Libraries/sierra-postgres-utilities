@@ -17,7 +17,7 @@ module Sierra
       # We don't know whether it was a bib/item/other_record_type method
       # being called on this deleted record, but we want to warn especially
       # in case it was.
-      def method_missing
+      def method_missing(method_name, *arguments, &block)
         raise DeletedRecordError, "Deleted record #{record_type_code}" \
         "#{record_num} lacks methods associated with undeleted records."
       end
