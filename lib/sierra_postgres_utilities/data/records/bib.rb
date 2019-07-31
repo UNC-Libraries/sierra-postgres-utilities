@@ -72,8 +72,14 @@ module Sierra
 
       alias cat_date cataloging_date_gmt
 
+      # Safe navigation is preferable here as weird circumstances (presumably
+      # errors) can lead bib records in the db to lack a bib_record_property
+      # entry. (For record, b100002, we had two record_metadata entries with
+      # that record_type_code and record_num; one was an ncip record. The
+      # ncip record had a bib_record_property record, the non-ncip bib did
+      # not.)
       def mat_type
-        property[:material_code]
+        property&.material_code
       end
 
       # @return [Array<String>] record's location code(s) excepting "multi"
@@ -82,11 +88,11 @@ module Sierra
       end
 
       def best_title
-        property.best_title
+        property&.best_title
       end
 
       def best_author
-        property.best_author
+        property&.best_author
       end
 
       # Returns record's imprint.
