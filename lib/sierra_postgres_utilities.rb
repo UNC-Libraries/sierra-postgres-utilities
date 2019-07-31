@@ -18,8 +18,6 @@ module Sierra
 
     require_relative 'sierra_postgres_utilities/search'
     require_relative 'sierra_postgres_utilities/record'
-
-    require_relative 'sierra_postgres_utilities/derivative_bib'
   end
 
   require_relative 'sierra_postgres_utilities/spec_support'
