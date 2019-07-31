@@ -5,18 +5,6 @@ describe Sierra::Data::Bib do
   let(:data) { build(:data_b) }
   let(:bib) { newrec(Sierra::Data::Bib, metadata, data) }
 
-  let(:property) do
-    {id: 1076136,
-     bib_record_id: 420908636160,
-     best_title: 'Something else : a novel',
-     bib_level_code: 'm',
-     material_code: 'a',
-     publish_year: 1981,
-     best_title_norm: 'something else a novel',
-     best_author: 'Fassnidge, Virginia.',
-     best_author_norm: 'fassnidge virginia'}
-  end
-
   describe '#bnum' do
     it 'returns rnum (including leading-letter and trailing-a)' do
       expect(bib.bnum).to eq(bib.rnum)
@@ -45,7 +33,7 @@ describe Sierra::Data::Bib do
 
     describe '#mat_type' do
       it 'returns material type from bib_record_property' do
-        bib.set_data(:property, property)
+        bib.set_data(:property, build(:bib_property))
         expect(bib.mat_type).to eq('a')
       end
     end

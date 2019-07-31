@@ -17,18 +17,22 @@ module Sierra
       # Writes results to file.
       #
       # Formats: tsv, csv, xlsx (xlsx writable on windows only)
+      # Headers only need to be specified when they differ from
+      # the columns of the query results.
       #
       # @param [String] outfile path for outfile
       #   - for xlsx only: a relative path is relative to user's windows
       #     home directory, so using an absolute path may be preferable
       # @param [Enumerable<#values>] results (default: Sierra::DB.results)
+      # @param [Array<String>] headers (default: nil)
       # @param [Boolean] include_headers (default: true) write headers to file?
       # @param [Symbol] format (default: tsv) format of export: :tsv, :csv,
       #   :xlsx.
-      def write_results(outfile, results: self.results,
+      def write_results(outfile, results: self.results, headers: nil,
                         include_headers: true, format: :tsv)
         Sierra::DB::Query.write_results(outfile,
                                         results: results, format: format,
+                                        headers: headers,
                                         include_headers: include_headers)
       end
 
@@ -76,15 +80,11 @@ module Sierra
       end
 
       # (see #write_results)
-      def self.write_results(outfile, results: self.results,
+      def self.write_results(outfile, results: self.results, headers: nil,
                              include_headers: true, format: :tsv)
         puts 'writing results'
-        headers =
-          if include_headers
-            self.headers
-          else
-            ''
-          end
+        headers ||= self.headers
+        headers = '' unless include_headers
 
         format = format.to_sym
         case format
@@ -159,12 +159,14 @@ module Sierra
 
       # Returns cached email "address book" or reads it from 'email.secret'
       # yaml file.
-      def self.emails
+      def self.emails(file = 'email.secret')
         @emails ||=
           begin
-            YAML.load_file('email.secret')
+            YAML.load_file(file)
           rescue Errno::ENOENT
-            YAML.load_file(File.join(base_dir, '/email.secret'))
+            YAML.load_file(File.join(Connection.base_dir, file))
+          rescue TypeError
+            YAML.load(file)
           end
       end
 
@@ -176,12 +178,14 @@ module Sierra
       # yaml file.
       #
       # @return [Hash] smtp server connection details (address, port)
-      def self.smtp
+      def self.smtp(file = 'smtp.secret')
         @smtp ||=
           begin
-            YAML.load_file('smtp.secret')
+            YAML.load_file(file)
           rescue Errno::ENOENT
-            YAML.load_file(File.join(base_dir, '/smtp.secret'))
+            YAML.load_file(File.join(Connection.base_dir, file))
+          rescue TypeError
+            YAML.load(file)
           end
       end
 
@@ -197,6 +201,7 @@ module Sierra
         Mail.deliver do
           from     mail_details[:from]
           to       mail_details[:to]
+          cc       mail_details[:cc]
           subject  mail_details[:subject]
           body     mail_details[:body]
 
