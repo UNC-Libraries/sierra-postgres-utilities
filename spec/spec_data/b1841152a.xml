@@ -1,5 +1,5 @@
 <record>
-  <leader>00469cam  2200169Ia 4500</leader>
+  <leader>00614cam a2200205Ia 4500</leader>
   <controlfield tag='001'>8671134</controlfield>
   <controlfield tag='005'>19820807000000.0</controlfield>
   <controlfield tag='008'>820807s1981    enk           000 1 eng d</controlfield>
@@ -8,10 +8,12 @@
   </datafield>
   <datafield tag='040' ind1=' ' ind2=' '>
     <subfield code='a'>NOC</subfield>
+    <subfield code='b'>eng</subfield>
     <subfield code='c'>NOC</subfield>
   </datafield>
   <datafield tag='100' ind1='1' ind2=' '>
     <subfield code='a'>Fassnidge, Virginia.</subfield>
+    <subfield code='0'>http://id.loc.gov/authorities/names/n87128938</subfield>
   </datafield>
   <datafield tag='245' ind1='1' ind2='0'>
     <subfield code='a'>Something else :</subfield>
@@ -24,15 +26,29 @@
     <subfield code='c'>1981.</subfield>
   </datafield>
   <datafield tag='300' ind1=' ' ind2=' '>
-    <subfield code='a'>152 p. ;</subfield>
-    <subfield code='c'>23 cm.</subfield>
+    <subfield code='a'>152 pages ;</subfield>
+    <subfield code='c'>23 cm</subfield>
+  </datafield>
+  <datafield tag='336' ind1=' ' ind2=' '>
+    <subfield code='a'>text</subfield>
+    <subfield code='b'>txt</subfield>
+    <subfield code='2'>rdacontent</subfield>
+  </datafield>
+  <datafield tag='337' ind1=' ' ind2=' '>
+    <subfield code='a'>unmediated</subfield>
+    <subfield code='b'>n</subfield>
+    <subfield code='2'>rdamedia</subfield>
+  </datafield>
+  <datafield tag='338' ind1=' ' ind2=' '>
+    <subfield code='a'>volume</subfield>
+    <subfield code='b'>nc</subfield>
+    <subfield code='2'>rdacarrier</subfield>
   </datafield>
   <datafield tag='907' ind1=' ' ind2=' '>
     <subfield code='a'>.b18411526</subfield>
   </datafield>
   <datafield tag='915' ind1=' ' ind2=' '>
-    <subfield code='9'>Baseline 09_2013</subfield>
-    <subfield code='9'>Under Authority Control</subfield>
+    <subfield code='9'>MARCIVE20190805</subfield>
   </datafield>
   <datafield tag='935' ind1=' ' ind2=' '>
     <subfield code='a'>ADH-2114</subfield>
