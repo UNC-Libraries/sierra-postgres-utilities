@@ -113,7 +113,7 @@ module Sierra
           creds = YAML.load_file(file)
         rescue Errno::ENOENT
           begin
-            creds = YAML.load_file(File.join(base_dir, file))
+            creds = YAML.load_file(File.join(Dir.home, file))
           rescue Errno::ENOENT
             puts 'WARN: Connection credentials invalid or not found.'
           end

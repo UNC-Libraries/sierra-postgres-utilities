@@ -82,7 +82,6 @@ module Sierra
       # (see #write_results)
       def self.write_results(outfile, results: self.results, headers: nil,
                              include_headers: true, format: :tsv)
-        puts 'writing results'
         headers ||= self.headers
         headers = '' unless include_headers
 
@@ -112,7 +111,13 @@ module Sierra
         outfile = File.open(outfile, 'wb') unless outfile.respond_to?(:read)
         csv = CSV.new(outfile, col_sep: col_sep)
         csv << headers unless headers.empty?
+
+        query_completed = false
         results.each do |record|
+          unless query_completed
+            puts 'writing results'
+            query_completed = true
+          end
           csv << record.values
         end
         outfile.close
@@ -146,6 +151,7 @@ module Sierra
         # write data
         i = 1
         results.each do |result|
+          puts 'writing results' if i == 1
           i += 1
           worksheet.Range("A#{i}:#{end_col}#{i}").value = result.values
         end
@@ -164,7 +170,7 @@ module Sierra
           begin
             YAML.load_file(file)
           rescue Errno::ENOENT
-            YAML.load_file(File.join(Connection.base_dir, file))
+            YAML.load_file(File.join(Dir.home, file))
           rescue TypeError
             YAML.load(file)
           end
@@ -183,7 +189,7 @@ module Sierra
           begin
             YAML.load_file(file)
           rescue Errno::ENOENT
-            YAML.load_file(File.join(Connection.base_dir, file))
+            YAML.load_file(File.join(Dir.home, file))
           rescue TypeError
             YAML.load(file)
           end
@@ -195,6 +201,7 @@ module Sierra
 
       # (see #mail_results)
       def self.send_mail(outfile, mail_details, remove_file: false)
+        smtp = Sierra::DB::Query.smtp
         Mail.defaults do
           delivery_method :smtp, address: smtp['address'], port: smtp['port']
         end

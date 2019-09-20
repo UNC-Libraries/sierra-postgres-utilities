@@ -115,17 +115,17 @@ Sierra::DB.write_results('output.csv', format: 'csv')
 Sierra::DB.write_results('output.xlsx', format: 'xlsx') # Requires WIN32OLE so probably Windows-only.
 
 # Send results as attachment
-details =  {:from    => 'user@example.com',
-            :to      => 'other@example.com',
-            :cc      => 'also@example.com',
-            :subject => 'that query',
-            :body    => 'Attached.'}
+details =  {from:    'user@example.com',
+            to:      'other@example.com',
+            cc:      'also@example.com',
+            subject: 'that query',
+            body:    'Attached.'}
 Sierra::DB.mail_results('output.tsv', mail_details: details)
 ```
 
 ### Retrieve arbitrary views
 
-Retrieve arbitrary views as arrays of hashes via ```Sierra::DB.db[:view_name]```.
+Retrieve arbitrary views as arrays of hashes via `Sierra::DB.db[:view_name]`.
 
 ```ruby
 Sierra::DB.db[:request_rule].first
@@ -135,17 +135,17 @@ Sierra::DB.db[:request_rule].first
 ## SETUP
 
 * git clone <https://github.com/UNC-Libraries/sierra-postgres-utilities>
-* cd sierra-postgres-utilities
-* bundle install
-* bundle exec rake install
+* `cd sierra-postgres-utilities`
+* `bundle install`
+* `bundle exec rake install`
 * supply the Sierra postgres credentials per the below
 * optionally supply smtp server address
 
-When possible, it is recommended that you also install the ```sequel_pg``` gem which makes database access significantly faster. See <https://github.com/jeremyevans/sequel_pg> for installation details / requirements.
+When possible, it is recommended that you also install the `sequel_pg` gem which makes database access significantly faster. See <https://github.com/jeremyevans/sequel_pg> for installation details / requirements.
 
 ### Credentials
 
-Create a yaml file in the base directory like so:
+Create a yaml/text file like so:
 
 ```yaml
 host: myhost.example.com
@@ -155,11 +155,18 @@ user: myusername
 password: mypassword
 ```
 
-Store the creds in a file ```sierra_prod.secret``` in the
-current working directory or the base directory of sierra_postgres_utilities.
-Creds from this file will be used as the default connection.
+You may need to quote values (e.g. password) if they contain special characters.
 
-Alternately, specify a credential file location as an environment variable, e.g.:
+By default, sierra_postgres_utilities will try to read credentials from:
+- a file `sierra_prod.secret` in the current working directory
+- failing that, a file `sierra_prod.secret` in the user's home directory
+
+For casual use, we recommend keeping the credentials in your home directory,
+in a file called `sierra_prod.secret`.
+
+#### Credentials via environment variables
+
+Alternately, you can specify a credential file location as an environment variable, e.g.:
 
 ```bash
 SIERRA_INIT_CREDS=my/path/file.yaml irb
@@ -173,10 +180,13 @@ ENV['SIERRA_INIT_CREDS'] = 'my/path/file.yaml'
 require 'sierra_postgres_utilities'
 ```
 
+This still relies on credentials being stored in a file. The path to the
+credential file, not the credentials themselves, is set as an env variable.
+
 ### SMTP connection / email address storage
 
 Define an smtp connection (that does not require authentication) if you'll use this to send emails.
-Create ```smtp.secret``` in the working directory:
+Create `smtp.secret` in the working directory or home directory:
 
 ```yaml
 address: smtp.example.com
