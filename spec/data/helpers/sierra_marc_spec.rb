@@ -24,11 +24,21 @@ module Sierra
                 expect(bib.marc).to be_a(MARC::Record)
               end
 
-              it 'contains correct marc fields' do
-                expect(bib.marc.fields).to eq(correct_mrc.fields)
+              it 'contains correct marc fields', :aggregate_failures do
+                marc_bib = newrec(Sierra::Data::Bib, build(:metadata_b), build(:data_b))
+                marc_bib.set_data(:control_fields, [build(:control_008)])
+                marc_bib.set_data(
+                  :varfields,
+                  [build(:varfield_001), build(:varfield_005), build(:varfield_245),
+                   ]
+                )
+                expect(marc_bib.marc['001'].to_s).to eq('001 8671134')
+                expect(marc_bib.marc['005'].to_s).to eq('005 19820807000000.0')
+                expect(marc_bib.marc['008'].to_s).to eq('008 140912n| azannaabn          |n aaa      ')
+                expect(marc_bib.marc['245'].to_s).to eq('245 10 $a Something else : $b a novel / $c Virginia Fassnidge. ')
               end
 
-              it 'returns proper leader, apart from dummied fields/chars' do
+              it 'returns proper leader, apart from pseudo-value fields/chars' do
                 bib.marc.leader[0..4] = '00000'
                 bib.marc.leader[12..16] = '00000'
                 correct_mrc.leader[0..4] = '00000'

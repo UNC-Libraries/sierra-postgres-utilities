@@ -12,6 +12,10 @@ module Sierra
           code { 'ddda' }
         end
 
+        factory :loc_trln do
+          code { 'trln' }
+        end
+
         factory :loc_wbba do
           code { 'wbba' }
         end
