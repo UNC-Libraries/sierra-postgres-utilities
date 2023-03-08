@@ -16,12 +16,24 @@ module Sierra
           field_content { '|aSomething else :|ba novel' }
 
           factory :varfield_245 do
+            field_content { '|aSomething else :|ba novel /|cVirginia Fassnidge.' }
+          end
+
+          factory :varfield_001 do
+            marc_tag { '001' }
+            field_content { '8671134' }
           end
 
           factory :varfield_005 do
             marc_tag { '005' }
             varfield_type_code { 'y' }
             field_content { '19820807000000.0' }
+          end
+
+          factory :varfield_852 do
+            marc_tag { '852' }
+            varfield_type_code { 'c' }
+            field_content { '|hQV 704|iR388|zEarlier editions in stacks' }
           end
 
           factory :varfield_implicit_sfa do

@@ -72,7 +72,8 @@ describe Sierra::Data::Varfield do
           expect(v245.to_marc).to eq(
             MARC::DataField.new('245', '1', '0',
                                 ['a', 'Something else :'],
-                                ['b', 'a novel'])
+                                ['b', 'a novel /'],
+                                ['c', 'Virginia Fassnidge.'])
           )
         end
       end

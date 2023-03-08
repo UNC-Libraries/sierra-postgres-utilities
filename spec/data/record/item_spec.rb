@@ -141,6 +141,9 @@ describe Sierra::Data::Item do
 
   describe '#location_desc' do
     it 'returns location description / longname' do
+      location = build(:loc_trln)
+      location.instance_variable_set(:@name, 'Library Service Center — Request from Storage')
+      item.set_data(:location, location)
       expect(
         item.location_desc
       ).to eq('Library Service Center — Request from Storage')
