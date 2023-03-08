@@ -8,13 +8,6 @@ RSpec.configure do |config|
   FactoryBot.find_definitions
 end
 
-def dummy_set(hsh)
-  hsh.each do |k, v|
-    dummy.data.send(:"#{k}=", v)
-  end
-  dummy
-end
-
 module Sierra
   module SpecUtils
     module Records
