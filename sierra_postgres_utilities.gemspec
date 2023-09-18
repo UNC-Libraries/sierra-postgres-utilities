@@ -36,8 +36,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'factory_bot', '~> 5.0.0'
 
   spec.add_runtime_dependency 'mail', '~> 2.6'
-  spec.add_runtime_dependency 'marc', '~> 1.0'
+  spec.add_runtime_dependency 'marc', '~> 1.2.0'
   spec.add_runtime_dependency 'pg', '~> 1.1'
-  spec.add_runtime_dependency 'sequel', '~> 5.20.0'
+  spec.add_runtime_dependency 'sequel', '~> 5.69.0'
   spec.add_runtime_dependency 'i18n', '~> 1.6.0'
 end

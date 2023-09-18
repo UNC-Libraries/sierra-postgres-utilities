@@ -132,17 +132,17 @@ module MARC
 
     # Returns boolean for whether search returns >0 results
     def any_subfields?(**args)
-      self.subfield_search(args).any?
+      self.subfield_search(**args).any?
     end
 
     # Returns boolean for whether search returns 0 results
     def no_subfields?(**args)
-      !any_subfields(args)
+      !any_subfields(**args)
     end
 
     # Returns boolean for whether search returns 1 result
     def one_subfield?(**args)
-      self.subfield_search(args).count == 1
+      self.subfield_search(**args).count == 1
     end
 
     # True when the first subfield a contains foo
@@ -151,7 +151,7 @@ module MARC
     #   first_such_subfield_matches?(code: /[ak]/, content: /foo/)
     def any_subfields_ignore_repeated?(**args)
       args[:only_first_of_each_code] = true
-      self.subfield_search(args).any?
+      self.subfield_search(**args).any?
     end
 
     def meets_criteria?(tag: nil, ind1: nil, ind2: nil, value: nil,
@@ -189,13 +189,13 @@ module MARC
         type, hsh = rule
         case type
         when :has
-          return false unless any_subfields?(hsh)
+          return false unless any_subfields?(**hsh)
         when :has_no
-          return false if any_subfields?(hsh)
+          return false if any_subfields?(**hsh)
         when :has_one
-          return false unless one_subfield?(hsh)
+          return false unless one_subfield?(**hsh)
         when :has_as_first # a matching field must be first of its sf code
-          return false unless any_subfields_ignore_repeated?(hsh)
+          return false unless any_subfields_ignore_repeated?(**hsh)
         end
       end
 

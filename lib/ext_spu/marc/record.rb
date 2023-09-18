@@ -271,7 +271,7 @@ module MARC
         else
           @fields.dup
         end
-      fields_in_scope.select { |f| f.meets_criteria?(args) }
+      fields_in_scope.select { |f| f.meets_criteria?(**args) }
     end
 
     # Returns first field that matches criteria
@@ -285,20 +285,20 @@ module MARC
         else
           @fields.dup
         end
-      fields_in_scope.each { |f| return f if f.meets_criteria?(args) }
+      fields_in_scope.each { |f| return f if f.meets_criteria?(**args) }
       nil
     end
 
     def any_fields?(**args)
-      !!field_find(args)
+      !!field_find(**args)
     end
 
     def one_field?(**args)
-      field_find_all(args).count == 1
+      field_find_all(**args).count == 1
     end
 
     def no_fields?(**args)
-      field_find(args).nil?
+      field_find(**args).nil?
     end
   end # class Record
 end # module MARC
