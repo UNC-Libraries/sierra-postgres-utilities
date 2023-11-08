@@ -75,37 +75,37 @@ module Sierra
         varfield_search('b'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's "Library" varfield data
       def varfield_librarys(value_only: true)
         varfield_search('f'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's "Stats" varfield data
       def stats_fields(value_only: true)
         varfield_search('j'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's message field data
       def messages(value_only: true)
         varfield_search('m'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's volume field data
       def volumes(value_only: true)
         varfield_search('v'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's internal_notes data
       def internal_notes(value_only: true)
         varfield_search('x'.freeze, value_only: value_only)
       end
 
-      # @param (see #barcodes)
+      # @param (view documentation on #barcodes)
       # @return [Array<String, Varfield>] record's public_notes data
       def public_notes(value_only: true)
         varfield_search('z'.freeze, value_only: value_only)

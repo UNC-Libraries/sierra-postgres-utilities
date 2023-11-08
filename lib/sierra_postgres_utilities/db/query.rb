@@ -79,7 +79,7 @@ module Sierra
         results.columns
       end
 
-      # (see #write_results)
+      #(view documentation on #write_results)
       def self.write_results(outfile, results: self.results, headers: nil,
                              include_headers: true, format: :tsv)
         headers ||= self.headers
@@ -199,7 +199,7 @@ module Sierra
         @smtp = hsh
       end
 
-      # (see #mail_results)
+      # (view documentation on #mail_results)
       def self.send_mail(outfile, mail_details, remove_file: false)
         smtp = Sierra::DB::Query.smtp
         Mail.defaults do

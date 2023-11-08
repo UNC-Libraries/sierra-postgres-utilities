@@ -35,7 +35,7 @@ module Sierra
         rnum
       end
 
-      # (see Sierra::Record.get)
+      # (view documentation on Sierra::Record.get)
       def self.get(rnum:, id:)
         if rnum
           rnum = standardize_rnum(rnum)

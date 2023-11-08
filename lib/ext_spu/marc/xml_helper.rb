@@ -19,7 +19,7 @@ module MARC
       XMLHelper.escape_xml_reserved(data)
     end
 
-    # (see #escape_xml_reserved)
+    # (view documentation on #escape_xml_reserved)
     def self.escape_xml_reserved(data)
       return data unless data =~ /[<>&"']/
       data.
