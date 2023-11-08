@@ -25,7 +25,7 @@ module Sierra
         ).lazy.map(&:record)
       end
 
-      # (see #phrase_search)
+      # (view documentation on #phrase_search)
       def self.phrase_search(index, phrase,
                              rec_type: nil, match_type: nil)
         index = index&.to_sym

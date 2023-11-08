@@ -24,7 +24,7 @@ module Sierra
           expect(Sierra::Record.get(id: '420907986691').rnum).to eq(bnum)
         end
 
-        # See Sierra::Data::Item code for details. If using natural joins
+        # Refer to Sierra::Data::Item code for details. If using natural joins
         # in the model definition, retrieval of items with agency_code_num != 0
         # would fail.
         it "retrieves items with non-zero agency_code_num's" do

@@ -17,7 +17,7 @@ module Sierra
           @marc = Sierra::Data::Helpers::SierraMARC.compile_marc(self)
         end
 
-        # Compiles and caches marc, abnormally.
+        # Compiles and caches marc, atypically.
         #
         # This uses prepared statements which may be quicker than #marc /
         # #compile_marc's use of associations for leader/control/varfields.

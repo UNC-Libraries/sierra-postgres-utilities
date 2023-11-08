@@ -43,19 +43,19 @@ module Sierra
         Sierra::DB::Connection.connect(creds, options: options)
       end
 
-      # (see #db)
+      # (view documentation on #db)
       def self.db
         @db
       end
 
-      # (see #connected?)
+      # (view documentation on #connected?)
       def self.connected?
         @db.test_connection
       rescue
         false
       end
 
-      # (see #connect)
+      # (view documentation on #connect)
       def self.connect(creds = nil, options: {})
         set_creds(creds) if creds || Sierra::DB::Connection::CREDS.empty?
         make_connection(Sierra::DB::Connection::CREDS.merge(options))
@@ -65,7 +65,7 @@ module Sierra
       # Accepts a hash or a yaml filename (expected to contain connection
       # variables). Tries default credential locations if nothing given.
       # @param [Hash, String] creds hash of credentials or string with
-      #   path to yaml file containing credentials. see #connect
+      #   path to yaml file containing credentials. refer to #connect
       # @return [Hash, nil] hash of connection credentials and Sierra
       #   connection constants. nil if valid-looking credentials were
       #   not given/found.
