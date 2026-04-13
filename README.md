@@ -2,8 +2,6 @@
 
 Ruby connection and ORM for iii Sierra ILS postgres database / SierraDNA, meant to simplify making querying, manipulating, and exporting MARC or non-MARC Sierra data and records.
 
-__NOTE: This is in early development and future changes may well not be backwards compatible.__
-
 __NOTE: Some sites may have iii setups that store different data in different places (e.g. bcode1, bcode2, bcode3) or differing local MARC practices (is the 001 an OCLC number?), and parts of these scripts do not account for that.__
 
 ## Usage overview
@@ -145,6 +143,8 @@ When possible, it is recommended that you also install the `sequel_pg` gem which
 
 ### Credentials
 
+Note: for security reasons, it is best **not** to store the password in the credentials file described below. If you omit the password field from the credentials file, sierra_postgres_utilities will prompt for a user password when it is run. This is the recommended method of authenticating, but it obviously may not be suitable for automated use.
+
 Create a yaml/text file like so:
 
 ```yaml
@@ -152,10 +152,10 @@ host: myhost.example.com
 port: 1032
 dbname: mydb
 user: myusername
-password: mypassword
+password: mypassword # optional, not recommended
 ```
 
-You may need to quote values (e.g. password) if they contain special characters.
+You may need to quote values (e.g. password) in the yaml file if they contain special characters.
 
 By default, sierra_postgres_utilities will try to read credentials from:
 - a file `sierra_prod.secret` in the current working directory

@@ -1,3 +1,4 @@
+require 'io/console'
 require 'yaml'
 require 'pg'
 require 'sequel'
@@ -78,10 +79,33 @@ module Sierra
         CREDS['port'] = creds['port']
         CREDS['user'] = creds['user']
         CREDS['password'] = creds['password']
+        CREDS['password'] = prompt_for_password unless password_present?
+        raise StandardError, "No password supplied" unless password_present?
 
         CREDS['database'] = 'iii'
         CREDS['adapter'] = 'postgres'
         CREDS['search_path'] = 'sierra_view'
+      end
+
+      def self.password_present?
+        CREDS['password'] && !CREDS['password'].empty?
+      end
+
+      def self.prompt_for_password(timeout_seconds: 60)
+        $stdout.print("\nsierra-postgres-utilities needs a password to connect to the Sierra database.")
+        $stdout.print("\nSierra Password: ")
+        $stdout.flush
+
+        $stdin.noecho do
+          if IO.select([$stdin], nil, nil, timeout_seconds)
+            $stdin.gets&.chomp
+          else
+            $stdout.puts "\nPassword prompt timed out after #{timeout_seconds} seconds."
+            nil
+          end
+        end
+      ensure
+        $stdout.puts  # move to new line after silent input
       end
 
       # Establishes connection to Sierra database
