@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # "3.0" must be quoted: https://github.com/actions/runner/issues/849
+        ruby: ['3.0', 3.1, 3.2, 3.3, 3.4]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby }}
+        bundler-cache: true
+
+    - name: Verify deferred loading
+      run: bundle exec ruby -Ilib -e "require 'sierra_postgres_utilities'"
+      env:
+        SIERRA_DELAY_CONNECT: '1'
+
+    # CI tests won't pass until:
+    # - RSpec shared setup is made compatible with deferred loading
+    # - specs testing against live records are updated or split out
+    #
+    # - name: Run specs
+    #   run: bundle exec rspec
+    #   env:
+    #     SIERRA_DELAY_CONNECT: '1'
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.3'
+        bundler-cache: true
+
+    - name: Install bundler-audit
+      run: gem install bundler-audit --no-document
+    - name: Audit dependencies
+      run: bundle-audit check --update
