@@ -35,6 +35,8 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency 'rspec', '~> 3.0'
   spec.add_development_dependency 'factory_bot', '~> 5.0.0'
 
+  spec.add_runtime_dependency 'bigdecimal'
+  spec.add_runtime_dependency 'csv'
   spec.add_runtime_dependency 'mail', '~> 2.6'
   spec.add_runtime_dependency 'marc', '~> 1.2.0'
   spec.add_runtime_dependency 'net-smtp'
