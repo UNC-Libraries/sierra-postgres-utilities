@@ -20,7 +20,7 @@ module Sierra::Search
       # 019
       ['5916808', 420908463899],
       # atypical 001
-      ['B-1565-11', 420911493821],
+      ['B-11083-28', 420911500500],
       # atypical 001
       ['nchg2df651fe-7079-47a2-b29d-77ea90702dc1', 420915817690],
       # 001 w/ subfield not present in Sierra 001
